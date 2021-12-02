@@ -1,0 +1,7 @@
+firebase_admin==4.4.0
+python-dotenv==0.17.1
+Pillow==8.2.0
+
+discord.py
+discord-py-slash-command
+aiohttp
