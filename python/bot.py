@@ -23,7 +23,7 @@ def _prefix_callable(bot, msg):
         base.append('!')
         base.append('?')
     else:
-        base.extend(bot.prefixes.get(str(msg.guild.id), ['?', '!']))
+        base.extend(bot.prefixes.get(str(msg.guild.id), ['?', '!', '>']))
     return base
 
 
