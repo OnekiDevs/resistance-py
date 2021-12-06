@@ -1,6 +1,5 @@
 import utils
 from utils.context import Context
-import aiohttp
 
 
 class Country(utils.discord.ui.Select):
@@ -77,12 +76,11 @@ class Form(utils.discord.ui.View):
         
     @utils.discord.ui.button(label='Enviar', style=utils.discord.ButtonStyle.red)
     async def send(self, button: utils.discord.ui.Button, interaction: utils.discord.Interaction):
-
         document = utils.db.Document(collection="tournamentc", document="participants")
 
         if len(document.content) >= 32:
-            return await interaction.response.send_message("Ups!, ya se lleno el limite de inscripciones :(\nSe mas rapido la proxima vez!")
-            await self.ctx.message.add_reaction('❌')
+            await interaction.response.send_message("Ups!, ya se lleno el limite de inscripciones :(\nSe mas rapido la proxima vez!")
+            return await self.ctx.message.add_reaction('❌')
 
         if utils.is_empty(self.country.values) or utils.is_empty(self.question.values):
             return await interaction.response.send_message('Creo que te falta contestar el formulario <:awita:852216204512329759>', ephemeral=True)
@@ -93,29 +91,22 @@ class Form(utils.discord.ui.View):
                                                   "question": self.question.values[0],
                                                   "id": self.ctx.author.id})
 
-        async with aiohttp.ClientSession(headers={'Content-Type': 'application/json', 'Authorization': f"Bot {utils.env.TOKEN}"}) as session:
-            response = await session.get(f"https://discord.com/api/v9/guilds/{self.ctx.guild.id}/members/{self.ctx.author.id}")
-            data = await response.json()
-            if data['avatar'] == None:
-                avatar = self.ctx.author.avatar.url
-            else: avatar = f"https://cdn.discordapp.com/guilds/{self.ctx.guild.id}/users/{self.ctx.author.id}/avatars/{data['avatar']}.webp"
-            channel = self.ctx.bot.get_channel(911764720481107989)
-
-            embed = utils.discord.Embed(title = "Nuevo Jugador Inscrito", description = f"<@{self.ctx.author.id}> ahora es un rival más", color = utils.discord.Colour.blue())
-            embed.set_thumbnail(url=avatar)
-            embed.set_image(url="https://cdn.discordapp.com/attachments/850419367573061653/913920854709129326/unknown.png")
-            embed.set_author(name = f"{self.ctx.author.name}#{self.ctx.author.discriminator}", icon_url = self.ctx.author.avatar.url)
-
-            await channel.send(embed = embed)
-
-
-
         for role in self.ctx.guild.roles:
             if role.id == 912816678818172968:
                 await self.ctx.author.add_roles(role)
         
         await interaction.response.send_message("Listo! , se envio tu inscripción correctamente :D\nAhora toca esperar las indicaciones de los admins :)", ephemeral=True)
         await self.ctx.message.add_reaction('✔')
+
+        avatar = self.ctx.author.guild_avatar.url if self.ctx.author.guild_avatar is not None else self.ctx.author.avatar.url
+        channel = self.ctx.bot.get_channel(911764720481107989)
+
+        embed = utils.discord.Embed(title = "Nuevo Jugador Inscrito", description = f"{self.ctx.author.mention} ahora es un rival más", color = utils.discord.Colour.blue())
+        embed.set_thumbnail(url=avatar)
+        embed.set_image(url="https://cdn.discordapp.com/attachments/850419367573061653/913920854709129326/unknown.png")
+        embed.set_author(name = f"{self.ctx.author.name}#{self.ctx.author.discriminator}", icon_url = self.ctx.author.avatar.url)
+        await channel.send(embed = embed)
+
         self.stop()
 
     async def on_timeout(self):
@@ -128,24 +119,12 @@ class Tournament_Chess(utils.commands.Cog):
 
     @utils.commands.command(hidden=True)
     async def inscription(self, ctx: Context):
-
         if ctx.guild is None:
             return
+
         form = Form(ctx)
-        
         await ctx.author.send("Pronto estará lista tu inscripción al torneo!, solo necesitamos que llenes este pequeño formulario:", embed=form.embed, view = form)
-    
-    
-    # @utils.cog_ext.cog_slash(name="ping", description="un slash command de prueba")
-    # async def _ping(self, ctx: SlashContext):
-    #     await ctx.send("pong!")
-        
-    # @utils.cog_ext.cog_slash(name="test", description="xd")
-    # async def _test(self, ctx: SlashContext):
-    #     embed = utils.discord.Embed(title="Embed Test", description=f"Aiohttp Client Session: {ctx.session}")
-    #     await ctx.send(embed=embed)
 
 
 def setup(bot):
     bot.add_cog(Tournament_Chess(bot))
-    
