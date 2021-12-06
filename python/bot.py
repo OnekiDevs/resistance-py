@@ -67,27 +67,6 @@ class OnekiBot(utils.commands.AutoShardedBot):
                 print(f'Failed to load extension {extension}.', file=sys.stderr)
                 traceback.print_exc()
 
-    async def on_command_error(self, ctx, error):
-        if isinstance(error, utils.commands.errors.CommandNotFound): 
-            pass
-        else: 
-            # Error message
-            msg = "".join(traceback.format_exception(type(error), error, error.__traceback__))
-
-            # Embed
-            embed = utils.discord.Embed(color=utils.discord.Colour.blue(), timestamp=utils.datetime.datetime.utcnow())
-            embed.set_author(name="Error", url=f"{ctx.message.jump_url}")
-            embed.add_field(name="Type:", value=f"```{type(error)}```", inline = False)
-            embed.add_field(name="Message:", value=f"```{ctx.message.content}```")
-            embed.add_field(name="Detail:", value=f"```{error}```", inline = False)
-
-            # Send message
-            print('Ignoring exception in command {}:'.format(ctx.command))
-            traceback.print_exception(type(error), error, error.__traceback__)
-            
-            await ctx.log(f"**Context:**\n```py\n{msg}\n```", embed=embed, etc=False)
-            await ctx.send(error)
-
 
     @staticmethod
     def _prefixes():
@@ -134,19 +113,40 @@ class OnekiBot(utils.commands.AutoShardedBot):
         utils.db.Document(collection="config", document="bot").delete("blacklist", str(object_id), array=True)
         self.blacklist.remove(str(object_id))
 
-    def translations(self, guild_id, path) -> dict:
+    def translations(self, lang, cog) -> dict:
         try:
-            with open(f"resource/lang/{self.get_raw_guild_lang(guild_id)}/{path}.json", "r") as f:
+            with open(f"resource/lang/{lang}/cogs/{cog}.json", "r") as f:
                 return json.loads(f.read())
         except(FileNotFoundError): 
-            with open(f"resource/lang/en/{path}.json", "r") as f:
+            with open(f"resource/lang/en/cogs/{cog}.json", "r") as f:
                 return json.loads(f.read()) 
 
     async def on_ready(self):
         activity = utils.discord.Activity(type=utils.discord.ActivityType.watching, name=f"{len(self.guilds)} servidores")
         await self.change_presence(status=utils.discord.Status.idle, activity=activity)
-        self.process_commands
+
         print(f'[+] Ready: {self.user} (ID: {self.user.id})')
+
+    async def on_command_error(self, ctx, error):
+        if isinstance(error, utils.commands.errors.CommandNotFound): 
+            pass
+        else: 
+            # Error message
+            msg = "".join(traceback.format_exception(type(error), error, error.__traceback__))
+
+            # Embed
+            embed = utils.discord.Embed(color=utils.discord.Colour.blue(), timestamp=utils.datetime.datetime.utcnow())
+            embed.set_author(name="Error", url=f"{ctx.message.jump_url}")
+            embed.add_field(name="Type:", value=f"```{type(error)}```", inline = False)
+            embed.add_field(name="Message:", value=f"```{ctx.message.content}```")
+            embed.add_field(name="Detail:", value=f"```{error}```", inline = False)
+
+            # Send message
+            print('Ignoring exception in command {}:'.format(ctx.command))
+            traceback.print_exception(type(error), error, error.__traceback__)
+            
+            await ctx.log(f"**Context:**\n```py\n{msg}\n```", embed=embed)
+            await ctx.send(error)
 
     async def process_commands(self, message):
         ctx = await self.get_context(message, cls=context.Context)
@@ -173,6 +173,7 @@ class OnekiBot(utils.commands.AutoShardedBot):
     async def close(self):
         await super().close()
         await self.session.close()
+        print("goodbye!")
 
     def run(self):
         token = env.TOKEN_DEV if env.TOKEN_DEV is not None else env.TOKEN

@@ -18,53 +18,17 @@ class Context(commands.Context):
     def lang(self):
         return self.bot.get_raw_guild_lang(str(self.guild.id))
 
-    def translations(self, path) -> dict:
-        try:
-            with open(f"resource/lang/{self.lang}/{path}.json", "r") as f:
-                return json.loads(f.read())
-        except(FileNotFoundError): 
-            with open(f"resource/lang/en/{path}.json", "r") as f:
-                return json.loads(f.read()) 
+    # def translation(self, path) -> dict:
+    #     translation = self.bot.translations(self.lang, self.cog.qualified_name)
+    #     self.log(self.cog.qualified_name)
 
-    async def log(self, message, *, embed=None, etc=True):
+    async def log(self, message, *, embed=None):
         # Debug channel
         channel = self.bot.get_channel(885674115615301651)
 
-        if etc:
+        if embed is not None:
             message = f"log: \n{message}\ncommand: {self.command}\ntimestamp: {datetime.datetime.utcnow()}"
             print(message)
 
         await channel.send(message, embed=embed)
   
-  
-# class SlashContext(discord_slash.SlashContext):
-# 	def __init__(self, **kwargs):
-# 		super().__init__(**kwargs)
-		
-# 	@property
-# 	def session(self):
-# 		return self.bot.session
-
-# 	@property
-# 	def lang(self):
-# 		return self.bot.languages.get(self.guild.id, "en")
-
-# 	def translations(self, path) -> dict:
-# 		try:
-# 			with open(f"resource/lang/{self.lang}/{path}.json", "r") as f:
-# 				return json.loads(f.read())
-# 		except(FileNotFoundError): 
-# 			with open(f"resource/lang/en/{path}.json", "r") as f:
-# 				return json.loads(f.read()) 
-
-# 	async def log(self, message, *, embed=None, etc=True):
-# 		# Debug channel
-# 		channel = self.bot.get_channel(885674115615301651)
-
-# 		if etc:
-# 			message = f"log: \n{message}\nslash_command: {self.command}\ntimestamp: {datetime.datetime.utcnow()}"
-# 			print(message)
-
-# 		await channel.send(message, embed=embed)
-  
-	
