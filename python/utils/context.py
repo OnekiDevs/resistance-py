@@ -18,9 +18,9 @@ class Context(commands.Context):
     def lang(self):
         return self.bot.get_raw_guild_lang(str(self.guild.id))
 
-    # def translation(self, path) -> dict:
-    #     translation = self.bot.translations(self.lang, self.cog.qualified_name)
-    #     self.log(self.cog.qualified_name)
+    @property
+    def translation(self) -> dict:
+        return self.bot.translations.command(self.lang, self.command)
 
     async def log(self, message, *, embed=None):
         # Debug channel
