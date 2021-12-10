@@ -21,8 +21,8 @@ def _prefix_callable(bot, msg):
     user_id = bot.user.id
     base = [f'<@!{user_id}> ', f'<@{user_id}> ']
     if msg.guild is None:
-        base.append('!')
         base.append('?')
+        base.append('>')
     else:
         base.extend(bot.prefixes.get(str(msg.guild.id), ['?', '>']))
     return base
@@ -81,8 +81,11 @@ class OnekiBot(utils.commands.AutoShardedBot):
             if utils.is_empty(content):
                 continue
             else:
-                prefixes[document.id] = content.get("prefixes", None)
-                languages[document.id] = content.get("lang", None)
+                if content.get("prefixes", None) is not None:
+                    prefixes[document.id] = content.get("prefixes", None)
+                    
+                if content.get("lang", None) is not None:
+                    languages[document.id] = content.get("lang", None)
 
         return prefixes, languages
 
