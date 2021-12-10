@@ -88,8 +88,7 @@ class Form(utils.discord.ui.View):
         document.update(str(self.ctx.author.id), {"name": f"{self.ctx.author.name}#{self.ctx.author.discriminator}", 
                                                   "pfp": self.ctx.author.avatar.url,
                                                   "country": self.country.values[0],
-                                                  "question": self.question.values[0],
-                                                  "id": self.ctx.author.id})
+                                                  "question": self.question.values[0]})
 
         for role in self.ctx.guild.roles:
             if role.id == 912816678818172968:
@@ -125,6 +124,23 @@ class Tournament_Chess(utils.commands.Cog):
         form = Form(ctx)
         await ctx.author.send("Pronto estará lista tu inscripción al torneo!, solo necesitamos que llenes este pequeño formulario:", embed=form.embed, view = form)
 
+    @utils.commands.command(hidden=True)
+    @utils.commands.has_permissions(administrator=True)
+    async def participants(self, ctx: Context):
+        document = utils.db.Document(collection="tournamentc", document="participants")
+        
+        num = 1
+        for user_id, data in document.content.items():
+            embed: utils.discord.Embed = utils.discord.Embed(colour=utils.discord.Colour.blue(), timestamp=utils.datetime.datetime.utcnow())
+            embed.set_author(name=data.get('name'), icon_url=data.get('pfp'))
+            
+            embed.add_field(name="ID:", value=f"`{user_id}`")
+            embed.add_field(name="Country:", value=f"`{data.get('country')}`")
+            embed.add_field(name="Question:", value=f"`{data.get('question')}`")
+            
+            await ctx.send(f"#{num}", embed=embed)
+            num += 1
+        
 
 def setup(bot):
     bot.add_cog(Tournament_Chess(bot))
