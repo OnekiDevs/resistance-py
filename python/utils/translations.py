@@ -1,6 +1,7 @@
 from os import listdir
 import json
 
+
 class Translations:
     def __init__(self, default_language="en"):
         self.default_language = default_language
@@ -41,7 +42,3 @@ class Translations:
     def function(self, lang, function_name):
         function_translations = self.get_cog_translations(lang, type="e", name=function_name)
         return function_translations
-
-if __name__ == "__main__": 
-    translations = Translations(default_language="es")
-    print(translations.command("en", "mute"))
