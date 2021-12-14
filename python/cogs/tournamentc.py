@@ -117,7 +117,7 @@ class Form(utils.discord.ui.View):
 
 class Player:
     def __init__(self, user_id):
-        self._document = utils.db.Document(collection="tournamentcx", document="participants")
+        self._document = utils.db.Document(collection="tournamentc", document="participants")
         self.id = str(user_id)
     
     @property
@@ -135,9 +135,9 @@ class Game:
     def __init__(self, ctx: Context, game_id):
         self.ctx = ctx
         self.id = str(game_id)
-        self._document = utils.db.Document(collection="tournamentcx", document="games")
-        self._waiting = utils.db.Document(collection="tournamentcx", document="games", subcollection="waiting", subdocument=self.id)
-        self._finished = utils.db.Document(collection="tournamentcx", document="games", subcollection="finished", subdocument=self.id)
+        self._document = utils.db.Document(collection="tournamentc", document="games")
+        self._waiting = utils.db.Document(collection="tournamentc", document="games", subcollection="waiting", subdocument=self.id)
+        self._finished = utils.db.Document(collection="tournamentc", document="games", subcollection="finished", subdocument=self.id)
     
     @property
     def waiting(self):
@@ -239,7 +239,7 @@ class Tournament_Chess(utils.commands.Cog):
             await ctx.send(embed=embed)
         else:    
             num = 1
-            players = utils.db.Document(collection="tournamentcx", document="participants")
+            players = utils.db.Document(collection="tournamentc", document="participants")
             for user_id, data in players.content.items():
                 embed: utils.discord.Embed = utils.discord.Embed(colour=utils.discord.Colour.blue(), timestamp=utils.datetime.datetime.utcnow())
                 embed.set_author(name=data.get('name'), icon_url=data.get('pfp'))
@@ -269,10 +269,10 @@ class Tournament_Chess(utils.commands.Cog):
     @utils.commands.command(hidden=True)
     @utils.commands.has_permissions(administrator=True)
     async def generate_games(self, ctx: Context):
-        collection = utils.db.Collection(collection="tournamentcx", document="games", subcollection="waiting")
+        collection = utils.db.Collection(collection="tournamentc", document="games", subcollection="waiting")
         collection.delete()
         
-        players = list(utils.db.Document(collection="tournamentcx", document="participants").content.keys())
+        players = list(utils.db.Document(collection="tournamentc", document="participants").content.keys())
         while utils.is_empty(players) == False:
             if len(players) == 1:
                 break
@@ -304,7 +304,7 @@ class Tournament_Chess(utils.commands.Cog):
             await ctx.send(embed=embed)
         else: 
             num = 1
-            waiting = utils.db.Collection(collection="tournamentcx", document="games", subcollection="waiting")
+            waiting = utils.db.Collection(collection="tournamentc", document="games", subcollection="waiting")
             for game_document in waiting.documents():
                 game = Game(ctx, game_document.id)
                 embed = utils.discord.Embed(title=f"Game #{num}", colour=utils.discord.Colour.blue(), timestamp=utils.datetime.datetime.utcnow())
@@ -327,7 +327,7 @@ class Tournament_Chess(utils.commands.Cog):
     @utils.commands.command(hidden=True)
     @utils.commands.has_permissions(administrator=True)
     async def winner(self, ctx: Context, member: utils.discord.Member):
-        playing = utils.db.Document(collection="tournamentcx", document="games").content.get("playing", {})
+        playing = utils.db.Document(collection="tournamentc", document="games").content.get("playing", {})
         if utils.is_empty(playing):
             await ctx.send("No se puede definir a un ganador porque no hay ningun juego iniciado 🙄")
         else:
