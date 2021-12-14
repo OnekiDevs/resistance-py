@@ -4,6 +4,7 @@ from discord.ext import commands
 
 import json
 import datetime
+import traceback
 
 
 class Context(commands.Context):
@@ -22,13 +23,11 @@ class Context(commands.Context):
     def translation(self) -> dict:
         return self.bot.translations.command(self.lang, self.command)
 
-    async def log(self, message, *, embed=None):
+    async def log(self, message):
         # Debug channel
         channel = self.bot.get_channel(885674115615301651)
 
-        if embed is not None:
-            message = f"log: \n{message}\ncommand: {self.command}\ntimestamp: {datetime.datetime.utcnow()}"
-            print(message)
+        message = f"log: \n{message}\ncommand: {self.command}\ntimestamp: {datetime.datetime.utcnow()}"
+        print(message)
 
-        await channel.send(message, embed=embed)
-  
+        await channel.send(message)

@@ -129,12 +129,13 @@ class OnekiBot(utils.commands.AutoShardedBot):
             embed.add_field(name="Detail:", value=f"```{error}```", inline = False)
 
             # Send message
+            channel = self.get_channel(885674115615301651)
             await ctx.send(error)
             
             print('Ignoring exception in command {}:'.format(ctx.command))
             traceback.print_exception(type(error), error, error.__traceback__)
             
-            await ctx.log(f"**Context:**\n```py\n{msg}\n```", embed=embed)
+            await channel.send(f"**Context:**\n```py\n{msg}\n```", embed=embed)
 
     async def process_commands(self, message):
         ctx = await self.get_context(message, cls=context.Context)

@@ -162,9 +162,9 @@ class Document(_DataBase):
 
     def set(self, **kwargs): 
         if self._subdocument is not None: 
-            self._subdocument.set(kwargs)
+            self._subdocument.set(kwargs.get("content") if kwargs.get("content", None) is not None else kwargs)
         else: 
-            self._document.set(kwargs)
+            self._document.set(kwargs.get("content") if kwargs.get("content", None) is not None else kwargs)
 
     def update(self, camp, value, array = False):
         if self._subdocument is not None:
