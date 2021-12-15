@@ -1,8 +1,7 @@
 from discord.ext import commands
+import discord
 # import discord_slash
-# import discord
 
-import json
 import datetime
 import traceback
 
@@ -23,11 +22,13 @@ class Context(commands.Context):
     def translation(self) -> dict:
         return self.bot.translations.command(self.lang, self.command)
 
-    async def log(self, message):
+    @property
+    def debug_channel(self) -> discord.TextChannel:
         # Debug channel
-        channel = self.bot.get_channel(885674115615301651)
+        return self.bot.get_channel(885674115615301651)
 
-        message = f"log: \n{message}\ncommand: {self.command}\ntimestamp: {datetime.datetime.utcnow()}"
+    async def log(self, message):
+        message = f"log: \n`{message}`\ncommand: `{self.command}`\ntimestamp: `{datetime.datetime.utcnow()}`"
         print(message)
 
-        await channel.send(message)
+        await self.debug_channel.send(message)
