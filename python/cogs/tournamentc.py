@@ -1,4 +1,6 @@
 import uuid
+from io import BytesIO
+from PIL import Image, ImageDraw, ImageFont, ImageOps
 
 import utils
 from utils.context import Context
@@ -7,19 +9,25 @@ from utils.views import confirm, forms
 
 class Player:
     def __init__(self, user_id):
-        self._document = utils.db.Document(collection="tournamentc", document="participants")
+        self._participants_document = utils.db.Document(collection="tournamentc", document="participants")
+        self._eliminated_document = utils.db.Document(collection="tournamentc", document="eliminated")
         self.id = str(user_id)
     
     @property
+    def eliminated(self) -> bool:
+        return True if self._eliminated_document.content.get(self.id, None) is not None else False
+    
+    @property
     def data(self) -> dict:
-        return self._document.content.get(self.id)
+        return self._participants_document.content.get(self.id, self._eliminated_document.content.get(self.id))
     
     @property
     def name(self) -> str:
         return self.data.get('name')
     
     def delete(self):
-        self._document.delete(self.id)
+        self._eliminated_document.update(self.id, self.data)
+        self._participants_document.delete(self.id)
 
 
 class Game:
@@ -31,22 +39,23 @@ class Game:
         self._finished = utils.db.Document(collection="tournamentc", document="games", subcollection="finished", subdocument=self.id)
     
     @property
-    def waiting(self):
+    def waiting(self) -> bool:
         return self._waiting.exists
     
     @property
-    def playing(self):
-        if utils.is_empty(self._document.content.get("playing")):
-            return None
-        
-        return self._document.content.get("playing").get("game_id") == self.id
+    def playing(self) -> bool:
+        return None if utils.is_empty(self._document.content.get("playing")) else self._document.content.get("playing").get("game_id") == self.id
     
     @property
-    def finished(self):
+    def finished(self) -> bool:
         return self._finished.exists
     
     @property
-    def opponents(self) -> dict[Player] or None:
+    def round(self):
+        return self._finished.content.get("round") if self._finished else self._document.content.get("round")
+    
+    @property
+    def opponents(self) -> dict or None:
         if self.waiting:
             return {player_id: Player(player_id) for player_id in self._waiting.content.get("opponents")}
         elif self.finished:
@@ -56,14 +65,15 @@ class Game:
         else: return None
         
     async def start(self):
-        if self.waiting == False:
-            return await self.ctx.send("Nop, nada que ver por aqui, la partida no existe o ya fue terminada <:awita:852216204512329759>")
-        
-        data = self._waiting.content
-        data["game_id"] = self.id
-        data["game_link"] = None
-        
         if self.playing is None:
+            if self.waiting == False:
+                await self.ctx.send("Nop, nada que ver por aqui, la partida no existe o ya fue terminada <:awita:852216204512329759>")
+                return None
+
+            data = self._waiting.content
+            data["game_id"] = self.id
+            data["game_link"] = None
+
             self._waiting.delete()
             self._document.update("playing", data)
 
@@ -72,13 +82,16 @@ class Game:
                     await self.ctx.author.add_roles(role)
                     
             await self.ctx.send("Partida iniciada!")
+            return data
         else:
             await self.ctx.send("Lo siento, ya hay una partida en curso 🙄")
+            return None
     
     async def winner(self, user_id):
         if self.playing:
             opponents = self.opponents
             data = self._document.content.get("playing")
+            data['round'] = self.round
             data.pop("game_id")
             for player_id, player_object in opponents.items():
                 if player_id == str(user_id):
@@ -96,6 +109,24 @@ class Game:
             await self.ctx.send("Partida finalizada y ganador establecido")
         else: 
             await self.ctx.send("No se puede definir a un ganador porque este juego no se a iniciado 🙄")
+
+    async def vs_image(self):
+        if self.opponents is not None:
+            img = Image.open("resource/img/vs_template.png")
+            num = 0
+            for player_id in self.opponents.keys():
+                # BytesIO(object_player.data.get('pfp').split('=')[0]+"=128")
+                object_user: utils.discord.User = await self.ctx.bot.fetch_user(int(player_id))
+                pfp = Image.open(BytesIO(await object_user.avatar.with_size(128).read()))
+                pfp = pfp.resize((178, 178))
+                img.paste(pfp, (112 if num == 0 else 112+(pfp.size[0]+269), 170))
+                num = 1
+            
+            img.save("resource/img/vs_cache.png")
+            return utils.discord.File(
+                fp="resource/img/vs_cache.png",
+                filename=f"{self.id}.png"
+            )
         
     def delete(self):
         self._waiting.delete()
@@ -122,9 +153,10 @@ class Tournament_Chess(utils.commands.Cog):
         if member is not None:
             player = Player(member.id)
             
-            embed: utils.discord.Embed = utils.discord.Embed(colour=utils.discord.Colour.blue(), timestamp=utils.datetime.datetime.utcnow())
+            embed = utils.discord.Embed(colour=utils.discord.Colour.blue(), timestamp=utils.datetime.datetime.utcnow())
             embed.set_author(name=player.name, icon_url=player.data.get('pfp'))
-            embed.add_field(name="ID:", value=f"`{player.id}`")
+            embed.add_field(name="ID:", value=f"`{player.id}`", inline=False)
+            embed.add_field(name="Eliminated?:", value=f"`{player.eliminated}`")
             embed.add_field(name="Country:", value=f"`{player.data.get('country')}`")
             embed.add_field(name="Question:", value=f"`{player.data.get('question')}`")
             
@@ -133,12 +165,12 @@ class Tournament_Chess(utils.commands.Cog):
             num = 1
             players = utils.db.Document(collection="tournamentc", document="participants")
             for user_id, data in players.content.items():
-                embed: utils.discord.Embed = utils.discord.Embed(colour=utils.discord.Colour.blue(), timestamp=utils.datetime.datetime.utcnow())
+                embed = utils.discord.Embed(colour=utils.discord.Colour.blue(), timestamp=utils.datetime.datetime.utcnow())
                 embed.set_author(name=data.get('name'), icon_url=data.get('pfp'))
                 embed.add_field(name="ID:", value=f"`{user_id}`")
                 embed.add_field(name="Country:", value=f"`{data.get('country')}`")
                 embed.add_field(name="Question:", value=f"`{data.get('question')}`")
-                
+
                 await ctx.send(f"#{num}", embed=embed)
                 num += 1
 
@@ -146,18 +178,19 @@ class Tournament_Chess(utils.commands.Cog):
     @utils.commands.has_permissions(administrator=True)
     async def remove_player(self, ctx: Context, member: utils.discord.Member):
         player = Player(member.id)
+        if player.eliminated == False:
+            view = confirm.Confirm()
+            await ctx.send(f"Seguro que quieres descalificar a {member.name}#{member.discriminator}?", view=view)
 
-        view = confirm.Confirm()
-        await ctx.send(f"Seguro que quieres descalificar a {member.name}#{member.discriminator}?", view=view)
+            await view.wait()
+            if view.value is None:
+                await ctx.send("Se te acabó el tiempo, intenta pensarlo antes de navidad 🙄")
+            elif view.value:
+                player.delete()
+                await ctx.send(f"{member.name}#{member.discriminator} fue descalificado :(")
+        else:
+            await ctx.send(f"{member.name}#{member.discriminator} ya esta descalificado o no esta en la lista de participantes 🙄")
 
-        await view.wait()
-        if view.value is None:
-            await ctx.send("Se te acabó el tiempo, intenta pensarlo antes de navidad 🙄")
-        elif view.value:
-            player.delete()
-            await ctx.send(f"{member.name}#{member.discriminator} fue descalificado :(")
-
-        
     @utils.commands.command(hidden=True)
     @utils.commands.has_permissions(administrator=True)
     async def generate_games(self, ctx: Context):
@@ -165,20 +198,55 @@ class Tournament_Chess(utils.commands.Cog):
         collection.delete()
         
         players = list(utils.db.Document(collection="tournamentc", document="participants").content.keys())
+        img = Image.open("resource/img/dashboard_template.png")
+            
+        num = 1
+        xy = [60, 59]
         while utils.is_empty(players) == False:
             if len(players) == 1:
                 break
 
+            # <------ Generacion de juegos ------>
             player1 = Player(utils.random.choice(players))
             players.pop(players.index(player1.id))
-            
+                                                
             player2 = Player(utils.random.choice(players))
             players.pop(players.index(player2.id))
+
+            id_game = str(uuid.uuid1().int)     
+            collection.set(id_game, opponents=[player1.id, player2.id])
+
+            # <------------- Imagen ------------->
+            # pfp user 1 
+            object_user1: utils.discord.User = await ctx.bot.fetch_user(int(player1.id))
+            pfp_user1 = Image.open(BytesIO(await object_user1.avatar.with_size(1024).read()))
+            pfp_user1 = pfp_user1.resize((65, 64))
+            # x: xy[0]; y: xy[1]
+            if num == 11:
+                # print(num)
+                xy[0] = xy[0] + (pfp_user1.size[1] + 1671)
+                xy[1] = 59
             
-            id = str(uuid.uuid1().int)
-            collection.set(id, opponents=[player1.id, player2.id])
+            if num != 1 and num != 11:
+                # print(num, xy[1] + (pfp_user1.size[0] + 63))
+                xy[1] = xy[1] + (pfp_user1.size[0] + 63)
+            img.paste(pfp_user1, tuple(xy))
+            num += 1
             
-            await ctx.send("Partidas generadas exitosamente!")
+            # pfp user 2
+            object_user2: utils.discord.User = await ctx.bot.fetch_user(int(player2.id))
+            pfp_user2 = Image.open(BytesIO(await object_user2.avatar.with_size(1024).read()))
+            pfp_user2 = pfp_user2.resize((65, 64))
+            xy[1] = xy[1] + (pfp_user2.size[0] + 64)
+            
+            img.paste(pfp_user2, tuple(xy))
+            num += 1
+        
+        img.save("resource/img/dashboard.png")
+        await ctx.send("Partidas generadas exitosamente!", file=utils.discord.File(
+            fp="resource/img/dashboard.png",
+            filename="dashboard.png"
+        ))
             
     @utils.commands.command(hidden=True)
     @utils.commands.has_permissions(administrator=True)
@@ -187,6 +255,7 @@ class Tournament_Chess(utils.commands.Cog):
             game = Game(ctx, game_id)
             embed = utils.discord.Embed(title="Game", colour=utils.discord.Colour.blue(), timestamp=utils.datetime.datetime.utcnow())
             embed.add_field(name="ID:", value=f"```{game.id}```", inline=False)
+            embed.add_field(name="State:", value=f"```{'waiting' if game.waiting else 'finished'}```", inline=False)
             
             num = 1
             for player in game.opponents.values():
@@ -214,7 +283,12 @@ class Tournament_Chess(utils.commands.Cog):
     @utils.commands.has_permissions(administrator=True)
     async def start_game(self, ctx: Context, game_id):
         game = Game(ctx, game_id)
-        await game.start()
+        data_game = await game.start()
+        if data_game is not None:
+            channel: utils.discord.TextChannel = self.bot.get_channel(911870183948320809)
+            # await channel.send(file=await game.vs_image())
+            
+            await ctx.send(file=await game.vs_image())
         
     @utils.commands.command(hidden=True)
     @utils.commands.has_permissions(administrator=True)

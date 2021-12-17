@@ -1,9 +1,6 @@
 from discord.ext import commands
 import discord
-# import discord_slash
-
 import datetime
-import traceback
 
 
 class Context(commands.Context):
@@ -28,7 +25,7 @@ class Context(commands.Context):
         return self.bot.get_channel(885674115615301651)
 
     async def log(self, message):
-        message = f"log: \n`{message}`\ncommand: `{self.command}`\ntimestamp: `{datetime.datetime.utcnow()}`"
-        print(message)
+        timestamp = datetime.datetime.utcnow()
 
-        await self.debug_channel.send(message)
+        print(f"log: \n{message}\ncommand: {self.command}\ntimestamp: {timestamp}")
+        await self.debug_channel.send(f"log: \n`{message}`\ncommand: `{self.command}`\ntimestamp: `{timestamp}`")
