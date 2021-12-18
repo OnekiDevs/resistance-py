@@ -60,6 +60,8 @@ class OnekiBot(utils.commands.AutoShardedBot):
         # these are users globally blacklisted
         self.blacklist = set(utils.db.Document(collection="config", document="bot").content.get("blacklist"))
 
+
+
         for extension in initial_extensions:
             try:
                 self.load_extension(extension)
@@ -111,6 +113,19 @@ class OnekiBot(utils.commands.AutoShardedBot):
     async def on_ready(self):
         activity = utils.discord.Activity(type=utils.discord.ActivityType.watching, name=f"{len(self.guilds)} servidores")
         await self.change_presence(status=utils.discord.Status.idle, activity=activity)
+
+        async with aiohttp.ClientSession() as session:
+                response = await session.post(
+                            f"https://lichess.org/api/tournament",
+                            headers={'Content-Type': 'application/json', 'Authorization': f"Bearer lip_fcKkf9wI0gIZGC2Ei1Db"},
+                            json={'name':f"LR Tournament 2021",
+                                  'clockTime':10,
+                                  'clockIncrement':3,
+                                  'minutes':120,
+                                  'waitMinutes':2}, )
+
+                data = await response.json()
+                print(data['id'])
 
         print(f'[+] Ready: {self.user} (ID: {self.user.id})')
 
