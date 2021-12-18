@@ -201,7 +201,8 @@ class Tournament_Chess(utils.commands.Cog):
         img = Image.open("resource/img/dashboard_template.png")
             
         num = 1
-        xy = [60, 59]
+        xy = [50, 50]
+        pfp_size = (100, 100)
         while utils.is_empty(players) == False:
             if len(players) == 1:
                 break
@@ -219,27 +220,27 @@ class Tournament_Chess(utils.commands.Cog):
             # <------------- Imagen ------------->
             # pfp user 1 
             object_user1: utils.discord.User = await ctx.bot.fetch_user(int(player1.id))
-            pfp_user1 = Image.open(BytesIO(await object_user1.avatar.with_size(1024).read()))
-            pfp_user1 = pfp_user1.resize((65, 64))
+            pfp = Image.open(BytesIO(await object_user1.avatar.with_format("png").with_size(128).read()))
+            pfp = pfp.resize(pfp_size)
             # x: xy[0]; y: xy[1]
             if num == 11:
-                # print(num)
-                xy[0] = xy[0] + (pfp_user1.size[1] + 1671)
-                xy[1] = 59
+                xy[0] = xy[0] + (pfp.size[0] + (img.size[0] - (pfp.size[0] + xy[0])*2))
+                xy[1] = 50
             
             if num != 1 and num != 11:
-                # print(num, xy[1] + (pfp_user1.size[0] + 63))
-                xy[1] = xy[1] + (pfp_user1.size[0] + 63)
-            img.paste(pfp_user1, tuple(xy))
+                # print(num, xy[1] + (pfp_user1.size[1] + 100))
+                xy[1] = xy[1] + (pfp.size[1] + 100)
+            
+            img.paste(pfp, tuple(xy))
             num += 1
             
             # pfp user 2
             object_user2: utils.discord.User = await ctx.bot.fetch_user(int(player2.id))
-            pfp_user2 = Image.open(BytesIO(await object_user2.avatar.with_size(1024).read()))
-            pfp_user2 = pfp_user2.resize((65, 64))
-            xy[1] = xy[1] + (pfp_user2.size[0] + 64)
-            
-            img.paste(pfp_user2, tuple(xy))
+            pfp = Image.open(BytesIO(await object_user2.avatar.with_size(128).read()))
+            pfp = pfp.resize(pfp_size)
+            # print(num, xy[1] + (pfp_user2.size[1] + 100), "par")
+            xy[1] = xy[1] + (pfp.size[1] + 100)
+            img.paste(pfp, tuple(xy))
             num += 1
         
         img.save("resource/img/dashboard.png")
