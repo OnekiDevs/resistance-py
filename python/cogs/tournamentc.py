@@ -67,10 +67,18 @@ class Game:
         else: return None
 
     async def get_new_link(self):
-        response = await self.ctx.session.post(f"https://lichess.org/api/tournament", json={'name':f"LR Tournament 2021", 'clockTime':10, 'clockIncrement':3, 'minutes':120, 'waitMinutes':2}, header={'Content-Type': 'application/json', 'Authorization': f"Bearer {tools.env.TOKEN_LICHESS}"})
+        response = await self.ctx.session.post(
+            f"https://lichess.org/api/tournament",
+            header={'Content-Type': 'application/json', 'Authorization': f"Bearer {utils.env.TOKEN_LICHESS}"}, 
+            json={'name':f"LR Tournament 2021", 
+                  'clockTime':10, 
+                  'clockIncrement':3, 
+                  'minutes':120, 
+                  'waitMinutes':2}, )
+        
         data = await response.json()
-        print(data.['id'])
-        return f"https://lichess.org/tournament/{data.['id']}"
+        print(data['id'])
+        return f"https://lichess.org/tournament/{data['id']}"
         
     async def start(self):
         if self.playing is None:
@@ -80,7 +88,7 @@ class Game:
 
             data = self._waiting.content
             data["game_id"] = self.id
-            data["game_link"] = None
+            data["game_link"] = await self.get_new_link()
 
             self._waiting.delete()
             self._document.update("playing", data)
@@ -295,9 +303,10 @@ class Tournament_Chess(utils.commands.Cog):
         data_game = await game.start()
         if data_game is not None:
             channel: utils.discord.TextChannel = self.bot.get_channel(911870183948320809)
-            # await channel.send(file=await game.vs_image())
+            await channel.send(file=await game.vs_image())
             
-            await ctx.send(file=await game.vs_image())
+            channel2: utils.discord.TextChannel = self.bot.get_channel(911774021186633728)
+            await channel2.send(data_game['game_link'])
         
     @utils.commands.command(hidden=True)
     @utils.commands.has_permissions(administrator=True)
