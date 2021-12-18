@@ -6,6 +6,8 @@ import utils
 from utils.context import Context
 from utils.views import confirm, forms
 
+import aiohttp
+
 
 class Player:
     def __init__(self, user_id):
@@ -63,6 +65,12 @@ class Game:
         elif self.playing: 
             return {player_id: Player(player_id) for player_id in self._document.content.get("playing").get("opponents")}
         else: return None
+
+    async def get_new_link(self):
+        response = await self.ctx.session.post(f"https://lichess.org/api/tournament", json={'name':f"LR Tournament 2021", 'clockTime':10, 'clockIncrement':3, 'minutes':120, 'waitMinutes':2}, header={'Content-Type': 'application/json', 'Authorization': f"Bearer {tools.env.TOKEN_LICHESS}"})
+        data = await response.json()
+        print(data.['id'])
+        return f"https://lichess.org/tournament/{data.['id']}"
         
     async def start(self):
         if self.playing is None:

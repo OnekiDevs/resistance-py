@@ -5,3 +5,6 @@ __pycache__/
 # dotenv environment variables file
 .env
 .env.test
+
+#config ide & text editors
+.idea
