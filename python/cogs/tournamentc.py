@@ -96,7 +96,9 @@ class Game:
 
             for role in self.ctx.guild.roles:
                 if role.id == 913036870701682699:
-                    await self.ctx.author.add_roles(role)
+                    for player_id in self.opponents.keys():
+                        object_member: utils.discord.Member = await self.ctx.guild.fetch_member(int(player_id))
+                        await object_member.add_roles(role)
                     
             await self.ctx.send("Partida iniciada!")
             return data
@@ -121,7 +123,9 @@ class Game:
             
             for role in self.ctx.guild.roles:
                 if role.id == 913036870701682699:
-                    await self.ctx.author.remove_roles(role)
+                    for player_id in self.opponents.keys():
+                        object_member: utils.discord.Member = await self.ctx.guild.fetch_member(int(player_id))
+                        await object_member.remove_roles(role)
             
             await self.ctx.send("Partida finalizada y ganador establecido")
         else: 
