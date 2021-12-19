@@ -108,7 +108,7 @@ class Game:
         if self.playing:
             opponents = self.opponents
             data = self._document.content.get("playing")
-            data['round'] = self.round
+            # data['round'] = self.round
             data.pop("game_id")
             for player_id, player_object in opponents.items():
                 if player_id == str(user_id):
