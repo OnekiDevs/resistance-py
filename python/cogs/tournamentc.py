@@ -294,7 +294,7 @@ class Tournament_Chess(utils.commands.Cog):
                     object_user: utils.discord.User = await ctx.bot.fetch_user(int(player.id))
                     await ctx.send(f"Pfp user {player.name}:", file=utils.discord.File(
                         fp=BytesIO(await object_user.avatar.with_size(128).read()),
-                        filename=f"{player.id}"
+                        filename=f"{player.id}.png"
                     ))
                     
                     _num += 1
