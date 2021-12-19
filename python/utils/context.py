@@ -1,4 +1,5 @@
 from discord.ext import commands
+import aiohttp
 import discord
 import datetime
 
@@ -8,7 +9,7 @@ class Context(commands.Context):
         super().__init__(**kwargs)
         
     @property
-    def session(self):
+    def session(self) -> aiohttp.ClientSession:
         return self.bot.session
 
     @property

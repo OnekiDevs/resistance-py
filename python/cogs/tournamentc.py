@@ -69,11 +69,13 @@ class Game:
     async def get_new_link(self):
         response = await self.ctx.session.post(
             f"https://lichess.org/api/tournament",
+            headers={'Content-Type': 'application/json', 'Authorization': f"Bearer {utils.env.TOKEN_LICHESS}"},
             json={'name':f"LR Tournament 2021", 
-                  'clockTime':10, 
-                  'clockIncrement':3, 
-                  'minutes':120, 
-                  'waitMinutes':2}, header={'Content-Type': 'application/json', 'Authorization': f"Bearer {utils.env.TOKEN_LICHESS}"}, )
+                    'clockTime':10, 
+                    'clockIncrement':3, 
+                    'minutes':120, 
+                    'waitMinutes':2}
+        )
         
         data = await response.json()
         print(data['id'])
@@ -167,7 +169,7 @@ class Tournament_Chess(utils.commands.Cog):
     async def players(self, ctx: Context, member: utils.discord.Member=None):
         if member is not None:
             player = Player(member.id)
-            
+
             embed = utils.discord.Embed(colour=utils.discord.Colour.blue(), timestamp=utils.datetime.datetime.utcnow())
             embed.set_author(name=player.name, icon_url=player.data.get('pfp'))
             embed.add_field(name="ID:", value=f"`{player.id}`", inline=False)
