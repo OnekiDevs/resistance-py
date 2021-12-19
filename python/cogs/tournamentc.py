@@ -308,7 +308,7 @@ class Tournament_Chess(utils.commands.Cog):
         game = Game(ctx, game_id)
         data_game = await game.start()
         if data_game is not None:
-            channel: utils.discord.TextChannel = self.bot.get_channel(911870183948320809)
+            channel: utils.discord.TextChannel = self.bot.get_channel(911764600146501674)
             await channel.send(file=await game.vs_image())
             
             channel2: utils.discord.TextChannel = self.bot.get_channel(911774021186633728)
