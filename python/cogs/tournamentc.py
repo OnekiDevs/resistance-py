@@ -291,6 +291,9 @@ class Tournament_Chess(utils.commands.Cog):
                 _num = 1
                 for player in game.opponents.values():
                     embed.add_field(name=f"Player {_num}:", value=f"```{player.name}/{player.id}```")
+                    object_user: utils.discord.User = await ctx.bot.fetch_user(int(player.id))
+                    await ctx.send(f"Pfp user {player.name}:", file=BytesIO(await object_user.avatar.with_size(128).read()))
+                    
                     _num += 1
                 
                 await ctx.send(embed=embed)
