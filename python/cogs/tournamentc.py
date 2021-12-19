@@ -69,12 +69,11 @@ class Game:
     async def get_new_link(self):
         response = await self.ctx.session.post(
             f"https://lichess.org/api/tournament",
-            header={'Content-Type': 'application/json', 'Authorization': f"Bearer {utils.env.TOKEN_LICHESS}"}, 
             json={'name':f"LR Tournament 2021", 
                   'clockTime':10, 
                   'clockIncrement':3, 
                   'minutes':120, 
-                  'waitMinutes':2}, )
+                  'waitMinutes':2}, header={'Content-Type': 'application/json', 'Authorization': f"Bearer {utils.env.TOKEN_LICHESS}"}, )
         
         data = await response.json()
         print(data['id'])
