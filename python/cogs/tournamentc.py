@@ -312,7 +312,7 @@ class Tournament_Chess(utils.commands.Cog):
             channel: utils.discord.TextChannel = self.bot.get_channel(911764600146501674)
             await channel.send(file=await game.vs_image())
             
-            channel2: utils.discord.TextChannel = self.bot.get_channel(911774021186633728)
+            channel2: utils.discord.TextChannel = self.bot.get_channel(921937676817530920)
             await channel2.send(game_data['game_links'][0])
     
     @utils.commands.command(hidden=True)
@@ -326,7 +326,7 @@ class Tournament_Chess(utils.commands.Cog):
             new_link = await game.get_new_link()
             
             playing.update("playing.game_links", new_link, array=True)
-            channel: utils.discord.TextChannel = self.bot.get_channel(911774021186633728)
+            channel: utils.discord.TextChannel = self.bot.get_channel(921937676817530920)
             await channel.send(new_link)
         
     @utils.commands.command(hidden=True)
