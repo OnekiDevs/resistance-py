@@ -74,7 +74,7 @@ class Game:
                     'clockTime':10, 
                     'clockIncrement':3, 
                     'minutes':120, 
-                    'waitMinutes':2}
+                    'waitMinutes':5}
         )
         
         data = await response.json()
