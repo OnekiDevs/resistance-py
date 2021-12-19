@@ -89,7 +89,7 @@ class Game:
 
             data = self._waiting.content
             data["game_id"] = self.id
-            data["game_link"] = await self.get_new_link()
+            data["game_links"] = [await self.get_new_link()]
 
             self._waiting.delete()
             self._document.update("playing", data)
@@ -307,13 +307,27 @@ class Tournament_Chess(utils.commands.Cog):
     @utils.commands.has_permissions(administrator=True)
     async def start_game(self, ctx: Context, game_id):
         game = Game(ctx, game_id)
-        data_game = await game.start()
-        if data_game is not None:
+        game_data = await game.start()
+        if game_data is not None:
             channel: utils.discord.TextChannel = self.bot.get_channel(911764600146501674)
             await channel.send(file=await game.vs_image())
             
             channel2: utils.discord.TextChannel = self.bot.get_channel(911774021186633728)
-            await channel2.send(data_game['game_link'])
+            await channel2.send(game_data['game_links'][0])
+    
+    @utils.commands.command(hidden=True)
+    @utils.commands.has_permissions(administrator=True)
+    async def generate_new_game_link(self, ctx: Context):
+        playing = utils.db.Document(collection="tournamentc", document="games")
+        if utils.is_empty(playing.content.get("playing", {})):
+            await ctx.send("No hay un juego definido")
+        else:
+            game = Game(ctx, playing.get("game_id"))
+            new_link = await game.get_new_link()
+            
+            playing.update("playing.game_links", new_link, array=True)
+            channel: utils.discord.TextChannel = self.bot.get_channel(911774021186633728)
+            await channel.send(new_link)
         
     @utils.commands.command(hidden=True)
     @utils.commands.has_permissions(administrator=True)
