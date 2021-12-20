@@ -71,10 +71,10 @@ class Game:
             f"https://lichess.org/api/tournament",
             headers={'Content-Type': 'application/json', 'Authorization': f"Bearer {utils.env.TOKEN_LICHESS}"},
             json={'name':f"LR Tournament 2021", 
-                    'clockTime':10, 
-                    'clockIncrement':3, 
-                    'minutes':120, 
-                    'waitMinutes':5}
+                    'clockTime': 5, 
+                    'clockIncrement': 3, 
+                    'minutes': 120, 
+                    'waitMinutes': 5}
         )
         
         data = await response.json()
