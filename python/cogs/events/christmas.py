@@ -27,7 +27,7 @@ class Gift(utils.discord.ui.View):
         await func(interaction)
         self.received_gift = True
         
-        await interaction.delete_original_message()
+        await interaction.message.delete()
         self.stop()
 
 
