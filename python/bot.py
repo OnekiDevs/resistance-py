@@ -13,7 +13,8 @@ Hola!, soy Oneki un bot multitareas y estare muy feliz en ayudarte en los que ne
 """
 
 initial_extensions = (
-    "cogs.tournamentc",
+    "cogs.events.tournamentc",
+    "cogs.events.christmas"
 )
 
 
