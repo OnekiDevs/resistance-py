@@ -62,8 +62,7 @@ class OnekiBot(utils.commands.AutoShardedBot):
         # these are users globally blacklisted
         self.blacklist = set(utils.db.Document(collection="config", document="bot").content.get("blacklist"))
 
-
-
+        # cogs unload
         for extension in initial_extensions:
             try:
                 self.load_extension(extension)

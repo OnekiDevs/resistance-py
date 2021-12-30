@@ -4,5 +4,13 @@
             "author": "Avatar de {}",
             "footer": "Solicitado por {}"
         }
+    },
+    "c_info": {
+        "no_roles": "Ninguno",
+        "embed" : {
+            "title" : "Roles",
+            "fields": ["Actividad:", "Cuenta creada:", "Se unio al servidor:", "Color:", "ID:", "Estado:"],
+            "footer" : "Solicitado por {}"
+        }
     }
 }
