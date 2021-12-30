@@ -1,0 +1,8 @@
+{
+    "c_avatar": {
+        "embed": {
+            "author" : "Avatar of {}",
+            "footer" : "Requested by {}"
+        }
+    }
+}
