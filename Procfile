@@ -1,1 +1,1 @@
-python: python python
+python: python oneki
