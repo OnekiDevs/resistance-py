@@ -100,7 +100,7 @@ class OnekiBot(utils.commands.AutoShardedBot):
                 doc: db.firestore.firestore.DocumentSnapshot = await doc_ref.get()
                 if doc.exists: 
                     doc_content = doc.to_dict()
-                    blacklist["users"].add(doc.id) if doc_content.get("type") == "user" else blacklist["guilds"].add(doc.id)
+                    blacklist["users" if doc_content.get("type") == "user" else "guilds"].add(doc.id)
         
         self.loop.run_until_complete(iterator())
         return blacklist
@@ -120,7 +120,7 @@ class OnekiBot(utils.commands.AutoShardedBot):
         doc_ref = self.db.document(f"blacklist/{object_id}")
         await doc_ref.set({"type": type, "reason": reason})
         
-        self.blacklist["users"].add(str(object_id)) if type == "user" else self.blacklist["guilds"].add(str(object_id))
+        self.blacklist["users" if type == "user" else "guilds"].add(str(object_id))
 
     async def remove_from_blacklist(self, object_id):
         doc_ref = self.db.document(f"blacklist/{object_id}")
@@ -128,7 +128,7 @@ class OnekiBot(utils.commands.AutoShardedBot):
         if not doc.exists():
             raise Exception(f"{object_id} not in blacklist")
         
-        self.blacklist["users"].remove(str(object_id)) if doc.to_dict().get("type") == "user" else self.blacklist["guilds"].remove(str(object_id))
+        self.blacklist["users" if doc.to_dict().get("type") == "user" else "guilds"].remove(str(object_id)) 
 
     async def on_ready(self):
         activity = utils.discord.Activity(type=utils.discord.ActivityType.watching, name=f"{len(self.guilds)} servidores")
