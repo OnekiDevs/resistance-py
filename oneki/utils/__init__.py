@@ -1,11 +1,6 @@
 # Librerias importantes
 import discord
 from discord.ext import commands
-# import discord_slash
-# from discord_slash import cog_ext
-
-# Utils imprescindibles
-from utils import db
 
 # Etc
 import datetime

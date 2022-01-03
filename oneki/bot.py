@@ -3,9 +3,8 @@ import aiohttp
 import sys
 
 import utils
-from utils import context, env
+from utils import context, db, env
 from utils.translations import Translations
-
 
 description = """
 Hola!, soy Oneki un bot multitareas y estare muy feliz en ayudarte en los que necesites :D
@@ -17,7 +16,6 @@ initial_extensions = (
 
     "cogs.user",
 )
-
 
 def _prefix_callable(bot, msg):
     user_id = bot.user.id
@@ -43,6 +41,7 @@ class OnekiBot(utils.commands.AutoShardedBot):
             reactions=True,
             typing=True,
         )
+        
         super().__init__(
             command_prefix=_prefix_callable,
             description=description,
@@ -50,17 +49,17 @@ class OnekiBot(utils.commands.AutoShardedBot):
             intents=intents,
         )
         
-        # self.slash = utils.discord_slash.SlashCommand(self, sync_commands=True, sync_on_cog_reload=True)
+        self.db = db.async_client()
         self.translations = Translations()
         self.session = aiohttp.ClientSession(loop=self.loop)
 
         # prefixes[guild_id]: list
         # languages[guild_id]: str(lang)
-        self.prefixes, self.languages = self._configurations()
+        self.prefixes, self.languages = self._get_guild_settings()
 
         # user_id mapped to True
         # these are users globally blacklisted
-        self.blacklist = set(utils.db.Document(collection="config", document="bot").content.get("blacklist"))
+        self.blacklist = self._get_blacklist()
 
         # cogs unload
         for extension in initial_extensions:
@@ -70,27 +69,41 @@ class OnekiBot(utils.commands.AutoShardedBot):
                 print(f'Failed to load extension {extension}.', file=sys.stderr)
                 traceback.print_exc()
 
-
-    @staticmethod
-    def _configurations():
+    def _get_guild_settings(self):
         # guild_id: list
         prefixes = {}
         # guild_id: str(lang)
         languages = {}
         
-        collection = utils.db.Collection("config")
-        for document in collection.documents():
-            content = document.content
-            if utils.is_empty(content):
-                continue
-            else:
-                if content.get("prefixes", None) is not None:
-                    prefixes[document.id] = content.get("prefixes", None)
+        collection = self.db.collection("guilds")
+        async def iterator():
+            async for doc_ref in collection.list_documents():
+                doc: db.firestore.firestore.DocumentSnapshot = await doc_ref.get()
+                if doc.exists: 
+                    doc_content = doc.to_dict()
+                    if doc_content.get("prefixes") is not None:
+                        prefixes[doc.id] = doc_content.get("prefixes")
                     
-                if content.get("lang", None) is not None:
-                    languages[document.id] = content.get("lang", None)
-
+                    if doc_content.get("lang") is not None:
+                        languages[doc.id] = doc_content.get("lang")
+        
+        self.loop.run_until_complete(iterator())
         return prefixes, languages
+
+    def _get_blacklist(self):
+        # {users: {id, ...}, guilds: {id, ...}}
+        blacklist = {"users": set(), "guilds": set()}
+        
+        collection = self.db.collection("blacklist")
+        async def iterator():
+            async for doc_ref in collection.list_documents(): 
+                doc: db.firestore.firestore.DocumentSnapshot = await doc_ref.get()
+                if doc.exists: 
+                    doc_content = doc.to_dict()
+                    blacklist["users"].add(doc.id) if doc_content.get("type") == "user" else blacklist["guilds"].add(doc.id)
+        
+        self.loop.run_until_complete(iterator())
+        return blacklist
 
     def get_guild_prefixes(self, guild, *, local_inject=_prefix_callable):
         proxy_msg = utils.discord.Object(id=0)
@@ -100,16 +113,22 @@ class OnekiBot(utils.commands.AutoShardedBot):
     def get_raw_guild_prefixes(self, guild_id):
         return self.prefixes.get(str(guild_id), ['?', '>'])
 
-    def get_raw_guild_lang(self, guild_id):
+    def get_guild_lang(self, guild_id):
         return self.languages.get(str(guild_id), "en")
 
-    def add_to_blacklist(self, object_id):
-        utils.db.Document(collection="config", document="bot").update("blacklist", str(object_id), array=True)
-        self.blacklist.add(str(object_id))
+    async def add_to_blacklist(self, object_id, *, type, reason=None):
+        doc_ref = self.db.document(f"blacklist/{object_id}")
+        await doc_ref.set({"type": type, "reason": reason})
+        
+        self.blacklist["users"].add(str(object_id)) if type == "user" else self.blacklist["guilds"].add(str(object_id))
 
-    def remove_from_blacklist(self, object_id):
-        utils.db.Document(collection="config", document="bot").delete("blacklist", str(object_id), array=True)
-        self.blacklist.remove(str(object_id))
+    async def remove_from_blacklist(self, object_id):
+        doc_ref = self.db.document(f"blacklist/{object_id}")
+        doc = await doc_ref.get()
+        if not doc.exists():
+            raise Exception(f"{object_id} not in blacklist")
+        
+        self.blacklist["users"].remove(str(object_id)) if doc.to_dict().get("type") == "user" else self.blacklist["guilds"].remove(str(object_id))
 
     async def on_ready(self):
         activity = utils.discord.Activity(type=utils.discord.ActivityType.watching, name=f"{len(self.guilds)} servidores")
@@ -146,7 +165,10 @@ class OnekiBot(utils.commands.AutoShardedBot):
         if message.author.bot:
             return
 
-        if ctx.author.id in self.blacklist:
+        if ctx.author.id in self.blacklist["users"]:
+            return
+        
+        if ctx.guild.id in self.blacklist["guilds"]:
             return
 
         await self.invoke(ctx)
@@ -168,6 +190,6 @@ class OnekiBot(utils.commands.AutoShardedBot):
         print("goodbye!")
 
     def run(self):
-        token = env.TOKEN_DEV if env.TOKEN_DEV is not None else env.TOKEN
+        token = env.TOKEN_DISCORD_DEV if env.TOKEN_DISCORD_DEV is not None else env.TOKEN_DISCORD
         super().run(token, reconnect=True)
 
