@@ -1,9 +1,11 @@
 from os import listdir
 import json
 
+DEFAULT_LANGUAGE = "en"
+
 
 class Translations:
-    def __init__(self, default_language="en"):
+    def __init__(self, default_language=DEFAULT_LANGUAGE):
         self.default_language = default_language
         
         # lang: dict(translation)

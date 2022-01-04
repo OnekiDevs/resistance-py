@@ -1,6 +1,7 @@
 import traceback
 import aiohttp
 import sys
+from oneki.utils import translations
 
 import utils
 from utils import context, db, env
@@ -114,7 +115,7 @@ class OnekiBot(utils.commands.AutoShardedBot):
         return self.prefixes.get(str(guild_id), ['?', '>'])
 
     def get_guild_lang(self, guild_id):
-        return self.languages.get(str(guild_id), "en")
+        return self.languages.get(str(guild_id), translations.DEFAULT_LANGUAGE)
 
     async def add_to_blacklist(self, object_id, *, type, reason=None):
         doc_ref = self.db.document(f"blacklist/{object_id}")
