@@ -14,7 +14,7 @@ class Context(commands.Context):
 
     @property
     def lang(self):
-        return self.bot.get_raw_guild_lang(str(self.guild.id))
+        return self.bot.get_guild_lang(str(self.guild.id))
 
     @property
     def translation(self) -> dict:

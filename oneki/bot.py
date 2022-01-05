@@ -1,11 +1,9 @@
 import traceback
 import aiohttp
 import sys
-from oneki.utils import translations
 
 import utils
-from utils import context, db, env
-from utils.translations import Translations
+from utils import translations, context, db, env
 
 description = """
 Hola!, soy Oneki un bot multitareas y estare muy feliz en ayudarte en los que necesites :D
@@ -51,7 +49,7 @@ class OnekiBot(utils.commands.AutoShardedBot):
         )
         
         self.db = db.async_client()
-        self.translations = Translations()
+        self.translations = translations.Translations()
         self.session = aiohttp.ClientSession(loop=self.loop)
 
         # prefixes[guild_id]: list
@@ -76,9 +74,9 @@ class OnekiBot(utils.commands.AutoShardedBot):
         # guild_id: str(lang)
         languages = {}
         
-        collection = self.db.collection("guilds")
+        collection_ref = self.db.collection("guilds")
         async def iterator():
-            async for doc_ref in collection.list_documents():
+            async for doc_ref in collection_ref.list_documents():
                 doc: db.firestore.firestore.DocumentSnapshot = await doc_ref.get()
                 if doc.exists: 
                     doc_content = doc.to_dict()
@@ -95,15 +93,18 @@ class OnekiBot(utils.commands.AutoShardedBot):
         # {users: {id, ...}, guilds: {id, ...}}
         blacklist = {"users": set(), "guilds": set()}
         
-        collection = self.db.collection("blacklist")
-        async def iterator():
-            async for doc_ref in collection.list_documents(): 
-                doc: db.firestore.firestore.DocumentSnapshot = await doc_ref.get()
-                if doc.exists: 
-                    doc_content = doc.to_dict()
-                    blacklist["users" if doc_content.get("type") == "user" else "guilds"].add(doc.id)
+        users_doc_ref = self.db.document("blacklist/users")
+        guilds_doc_ref = self.db.document("blacklist/guilds")
+        async def awaiting():
+            guilds_doc = await guilds_doc_ref.get()
+            if guilds_doc.exists:
+                blacklist["guilds"] = guilds_doc.to_dict().keys()
+                
+            users_doc = await users_doc_ref.get()
+            if users_doc.exists:
+                blacklist["users"] = users_doc.to_dict().keys()
         
-        self.loop.run_until_complete(iterator())
+        self.loop.run_until_complete(awaiting())
         return blacklist
 
     def get_guild_prefixes(self, guild, *, local_inject=_prefix_callable):
@@ -117,19 +118,25 @@ class OnekiBot(utils.commands.AutoShardedBot):
     def get_guild_lang(self, guild_id):
         return self.languages.get(str(guild_id), translations.DEFAULT_LANGUAGE)
 
-    async def add_to_blacklist(self, object_id, *, type, reason=None):
-        doc_ref = self.db.document(f"blacklist/{object_id}")
-        await doc_ref.set({"type": type, "reason": reason})
+    async def add_to_blacklist(self, object, *, reason=None):
+        doc_ref = self.db.document(f"blacklist/{'guilds' if isinstance(object, utils.discord.Guild) else 'users'}")
+        await doc_ref.set({str(object.id): reason})
         
-        self.blacklist["users" if type == "user" else "guilds"].add(str(object_id))
+        self.blacklist['guilds' if isinstance(object, utils.discord.Guild) else 'users'].add(str(object.id))
 
-    async def remove_from_blacklist(self, object_id):
-        doc_ref = self.db.document(f"blacklist/{object_id}")
-        doc = await doc_ref.get()
-        if not doc.exists():
-            raise Exception(f"{object_id} not in blacklist")
-        
-        self.blacklist["users" if doc.to_dict().get("type") == "user" else "guilds"].remove(str(object_id)) 
+    async def remove_from_blacklist(self, object):
+        doc_ref = self.db.document(f"blacklist/{'guilds' if isinstance(object, utils.discord.Guild) else 'users'}")
+        blacklist = self.blacklist['guilds' if isinstance(object, utils.discord.Guild) else 'users']
+        if not blacklist in doc_ref.id:
+            raise Exception(f"{object.id} not in blacklist")
+
+        await doc_ref.delete(str(object.id))
+        blacklist.remove(str(object.id))
+
+    def in_blacklist(self, object):
+        if isinstance(object, utils.discord.Guild):
+            return True if object.id in self.blacklist['guilds'] else False
+        return True if object.id in self.blacklist['users'] else False
 
     async def on_ready(self):
         activity = utils.discord.Activity(type=utils.discord.ActivityType.watching, name=f"{len(self.guilds)} servidores")
@@ -166,10 +173,7 @@ class OnekiBot(utils.commands.AutoShardedBot):
         if message.author.bot:
             return
 
-        if ctx.author.id in self.blacklist["users"]:
-            return
-        
-        if ctx.guild.id in self.blacklist["guilds"]:
+        if self.in_blacklist(ctx.author) or self.in_blacklist(ctx.guild):
             return
 
         await self.invoke(ctx)
@@ -179,9 +183,9 @@ class OnekiBot(utils.commands.AutoShardedBot):
             return
 
         # Si pingearon al bot
-        if message.content == f"<@!{self.user.id}>" or message.content == f"<@{self.user}>":
-            translation = self.translations.event(self.get_raw_guild_lang(message.guild.id), "ping")
-            await message.channel.send(translation.format(self.get_raw_guild_prefixes(message.guild.id)))
+        if message.content in [f'<@!{self.user.id}>', f'<@{self.user.id}>']:
+            translation = self.translations.event(self.get_guild_lang(message.guild.id), "ping")
+            await message.channel.send(translation.format(self.get_guild_prefixes(message.guild)))
 
         await self.process_commands(message)
 
