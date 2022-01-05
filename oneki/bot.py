@@ -11,7 +11,7 @@ Hola!, soy Oneki un bot multitareas y estare muy feliz en ayudarte en los que ne
 
 initial_extensions = (
     "cogs.events.tournamentc",
-    "cogs.events.christmas",
+    # "cogs.events.christmas",
 
     "cogs.user",
 )
