@@ -26,12 +26,32 @@ def async_client(app=None):
     return fs_client.get()
 
 
+class AsyncDocumentReference(firestore.firestore.AsyncDocumentReference):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+    
+    async def delete(self, camp=None, *args):
+        await super().update({camp: firestore.firestore.DELETE_FIELD}, args) if camp is not None else await super().delete(args)
+
+
+class AsyncClient(firestore.firestore.AsyncClient):
+    def __init__(self, credentials=None, project=None, *args):
+        super().__init__(credentials=credentials, project=project, *args)
+        self.ArrayUnion = firestore.firestore.ArrayUnion
+        self.ArrayRemove = firestore.firestore.ArrayRemove
+    
+    def document(self, *document_path: str) -> AsyncDocumentReference:
+        return AsyncDocumentReference(
+            *self._document_path_helper(*document_path), client=self
+        )
+
+
 class _FirestoreAsyncClient:
     """Holds a async Google Cloud Firestore client instance."""
     def __init__(self, credentials, project):
-        self._client = firestore.firestore.AsyncClient(credentials=credentials, project=project)
+        self._client = AsyncClient(credentials=credentials, project=project)
 
-    def get(self) -> firestore.firestore.AsyncClient:
+    def get(self) -> AsyncClient:
         return self._client
 
     @classmethod
