@@ -33,12 +33,10 @@ class OnekiBot(utils.commands.AutoShardedBot):
         intents = utils.discord.Intents(
             guilds=True,
             members=True,
-            bans=True,
-            emojis=True,
+            presences=True,
             voice_states=True,
             messages=True,
-            reactions=True,
-            typing=True,
+            bans=True
         )
         
         super().__init__(

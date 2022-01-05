@@ -7,7 +7,7 @@ class User(utils.commands.Cog):
         self.bot = bot
         
     @utils.commands.command()
-    async def avatar(self, ctx: Context, member : utils.discord.Member=None):
+    async def avatar(self, ctx: Context, member: utils.discord.Member=None):
         member = ctx.author if member == None else member
         avatar = member.guild_avatar.url if member.guild_avatar is not None else member.avatar.url
         
@@ -25,9 +25,9 @@ class User(utils.commands.Cog):
         except: roles = ctx.translation['no_roles']
         
         embed = utils.discord.Embed(
-            title=ctx.translation["embed"]["title"], 
-            description=f"{roles}", 
-            color=ctx.author.color,
+            title=ctx.translation["embed"]["title"],
+            description=roles,
+            color=member.color,
             timestamp=utils.datetime.datetime.utcnow(), 
         )
         embed.set_author(name=f"{member}", url=member.avatar.url)
