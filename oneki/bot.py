@@ -75,7 +75,7 @@ class OnekiBot(utils.commands.AutoShardedBot):
         collection_ref = self.db.collection("guilds")
         async def iterator():
             async for doc_ref in collection_ref.list_documents():
-                doc: db.firestore.firestore.DocumentSnapshot = await doc_ref.get()
+                doc = await doc_ref.get()
                 if doc.exists: 
                     doc_content = doc.to_dict()
                     if doc_content.get("prefixes") is not None:
@@ -93,16 +93,16 @@ class OnekiBot(utils.commands.AutoShardedBot):
         
         users_doc_ref = self.db.document("blacklist/users")
         guilds_doc_ref = self.db.document("blacklist/guilds")
-        async def awaiting():
+        async def coro():
             guilds_doc = await guilds_doc_ref.get()
             if guilds_doc.exists:
                 blacklist["guilds"] = guilds_doc.to_dict().keys()
                 
             users_doc = await users_doc_ref.get()
             if users_doc.exists:
-                blacklist["users"] = users_doc.to_dict().keys()
+                blacklist["users"] = set(users_doc.to_dict().keys())
         
-        self.loop.run_until_complete(awaiting())
+        self.loop.run_until_complete(coro())
         return blacklist
 
     def get_guild_prefixes(self, guild, *, local_inject=_prefix_callable):
@@ -125,7 +125,7 @@ class OnekiBot(utils.commands.AutoShardedBot):
     async def remove_from_blacklist(self, object):
         doc_ref = self.db.document(f"blacklist/{'guilds' if isinstance(object, utils.discord.Guild) else 'users'}")
         blacklist = self.blacklist['guilds' if isinstance(object, utils.discord.Guild) else 'users']
-        if not blacklist in doc_ref.id:
+        if not str(object.id) in blacklist:
             raise Exception(f"{object.id} not in blacklist")
 
         await doc_ref.delete(str(object.id))

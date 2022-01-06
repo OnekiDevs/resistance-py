@@ -2,11 +2,16 @@ from discord.ext import commands
 import aiohttp
 import discord
 import datetime
+from utils.db import AsyncClient
 
 
 class Context(commands.Context):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        
+    @property
+    def db(self) -> AsyncClient:
+        return self.bot.db
         
     @property
     def session(self) -> aiohttp.ClientSession:

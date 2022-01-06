@@ -31,7 +31,9 @@ class AsyncDocumentReference(firestore.firestore.AsyncDocumentReference):
         super().__init__(*args, **kwargs)
     
     async def delete(self, camp=None, *args):
-        await super().update({camp: firestore.firestore.DELETE_FIELD}, args) if camp is not None else await super().delete(args)
+        if camp is not None:
+            await super().update({camp: firestore.firestore.DELETE_FIELD}, *args) 
+        else: await super().delete(*args)
 
 
 class AsyncClient(firestore.firestore.AsyncClient):
