@@ -37,6 +37,8 @@ class AsyncDocumentReference(firestore.firestore.AsyncDocumentReference):
 
 
 class AsyncClient(firestore.firestore.AsyncClient):
+    async_transactional = firestore.firestore.async_transactional
+    
     def __init__(self, credentials=None, project=None, *args):
         super().__init__(credentials=credentials, project=project, *args)
         self.ArrayUnion = firestore.firestore.ArrayUnion
