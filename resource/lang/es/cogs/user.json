@@ -12,5 +12,13 @@
             "fields": ["Actividad:", "Cuenta creada:", "Se unio al servidor:", "Color:", "ID:", "Estado:"],
             "footer" : "Solicitado por {}"
         }
+    },
+    "c_afk": {
+        "no_reason": "No hay razón alguna",
+        "too_long": "¡La razón es demasiado larga! (Debe ser < 50)",
+        "no_links": "La razón no debe incluir links...",
+        "embed": {"title": "A partir de ahora {} se encuentra AFK"},
+        "max_name_length": "{} tu nombre es demasiado largo!",
+        "no_permissions": "¡Me faltan permisos para realizar esta accion!"
     }
 }

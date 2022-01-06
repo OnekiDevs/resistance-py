@@ -12,5 +12,20 @@
             "fields": ["Activity:", "Account created:", "Joined:", "Color:", "ID:", "Status:"],
             "footer" : "Requested by {}"
         }
+    },
+    "c_afk": {
+        "no_reason": "There is no reason",
+        "too_long": "The reason is too long! (It must be < 50)",
+        "no_links": "You can't add links to the reason!",
+        "embed": {"title": "{} is now AFK!"},
+        "max_name_length": "{} your name is too long!",
+        "no_permissions": "I don't have enough permissions to do this."
+    },
+    "e_afk": {
+        "embed": {
+            "title": "{} is afk",
+            "reason": "Reason: {}"
+        },
+        "no_longer_afk": "{} is no longer afk"
     }
 }
