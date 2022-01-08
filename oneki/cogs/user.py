@@ -69,7 +69,6 @@ class User(utils.commands.Cog):
         
         doc_ref = self.bot.db.document("users/afks")
         doc = await doc_ref.get()
-        print(doc.exists)
         if doc.exists:
             await doc_ref.update({str(user_id): data})
         else:
