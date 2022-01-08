@@ -23,7 +23,7 @@ class Context(commands.Context):
 
     @property
     def translation(self) -> dict:
-        return self.bot.translations.command(self.lang, self.command)
+        return self.bot.translations.command(self.lang, self.command.name)
 
     @property
     def debug_channel(self) -> discord.TextChannel:

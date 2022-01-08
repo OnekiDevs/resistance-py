@@ -8,11 +8,6 @@ class User(utils.commands.Cog):
         self.bot = bot
         self.afks = self._get_afks()
         
-        self.reload_afks.start()
-        
-    def cog_unload(self):
-        self.reload_afks.cancel()
-        
     def _get_afks(self):
         # user_id: dict(reason, time)
         afks = {}
@@ -68,13 +63,31 @@ class User(utils.commands.Cog):
 
         await ctx.send(embed = embed)
 
+    async def add_to_afk(self, user_id, *, reason):
+        data = {"reason": reason, "time": utils.utcnow()}
+        self.afks[str(user_id)] = data
+        
+        doc_ref = self.bot.db.document("users/afks")
+        doc = await doc_ref.get()
+        print(doc.exists)
+        if doc.exists:
+            await doc_ref.update({str(user_id): data})
+        else:
+            await doc_ref.set(self.afks)
+
+    async def remove_from_afk(self, user_id):
+        self.afks.pop(str(user_id))
+        
+        doc_ref = self.bot.db.document("users/afks")
+        await doc_ref.delete(str(user_id))
+
     @utils.commands.command()
     async def afk(self, ctx: Context, *, reason=None):
         member = ctx.author
         if str(member.id) in self.afks:
             translation = self.bot.translations.event(ctx.lang, "afk")
 
-            self.afks.pop(str(member.id))
+            await self.remove_from_afk(member.id)
             try:
                 await member.edit(nick=member.display_name.replace("[AFK] ", ""))
             except: pass
@@ -89,7 +102,7 @@ class User(utils.commands.Cog):
         if utils.check_links(reason): 
             return await ctx.send(ctx.translation["no_links"])
 
-        self.afks[str(member.id)] = {"reason": reason, "time": utils.utcnow()}
+        await self.add_to_afk(member.id, reason=reason)
         embed = utils.discord.Embed(title=ctx.translation["embed"]["title"].format(member.display_name), color=0x383FFF)
         if len(member.display_name) >= 27: 
             ctx.send(ctx.translation["max_name_length"].format(member.mention))
@@ -112,7 +125,7 @@ class User(utils.commands.Cog):
             member = message.author
             translation = self.bot.translations.event(self.bot.get_guild_lang(message.guild.id), "afk")
 
-            self.afks.pop(str(member.id))
+            await self.remove_from_afk(member.id)
             try:
                 await member.edit(nick=member.display_name.replace("[AFK] ", ""))
             except: pass
@@ -133,15 +146,6 @@ class User(utils.commands.Cog):
                         color=0xFCE64C
                     )
                     await message.channel.send(embed=embed, delete_after=15.0)
-    
-    @tasks.loop(seconds=5.0)
-    async def reload_afks(self):
-        doc_ref = self.bot.db.document("users/afks")
-        doc = await doc_ref.get()
-        if utils.is_empty(self.afks) and doc.exists:
-            await doc_ref.delete()
-        elif self.afks and self.reload_afks.current_loop != 0:
-            await doc_ref.set(self.afks)
         
 
 def setup(bot):
