@@ -36,9 +36,9 @@ class Translations:
 
     def _get_translations(self, lang, *, type, name):
         """
-        Command = "c";
-        Event = "e";
-        Function = "f"
+        Command = TypeTranslation.command;
+        Event = TypeTranslation.event;
+        Function = TypeTranslation.func
         """ 
         _name = type.value + "_" + name
         
