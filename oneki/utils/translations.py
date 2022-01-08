@@ -1,46 +1,65 @@
-from os import listdir
+from typing import Union
+import os
 import json
+
+from enum import Enum
+
 
 DEFAULT_LANGUAGE = "en"
 
 
+class TypeTranslation(Enum):
+    command = "c"
+    event = "e"
+    func = "f"
+
+
 class Translations:
-    def __init__(self, default_language=DEFAULT_LANGUAGE):
-        self.default_language = default_language
-        
+    def __init__(self, path: Union[str, os.PathLike] = None):
         # lang: dict(translation)
-        self._translations = {}
-        for lang in listdir("resource/lang"):
-            directory = f"resource/lang/{lang}/cogs"
+        self._translations = self.load_translations(path or os.path.join("resource/lang"))
 
-            translations = {}
-            for cog_name in listdir(directory):
-                with open(f"{directory}/{cog_name}", "r") as f:
-                    for key, value in json.loads(f.read()).items():
-                        translations[key] = value
+    @staticmethod
+    def load_translations(path: str):
+        translations = {}
+        for lang in os.listdir(path):
+            lang_translation = {}
+            for cog in os.listdir(path + f"/{lang}/cogs"):
+                with open(path + f"/{lang}/cogs/{cog}", "r") as f:
+                    file_content = f.read()
+                    for key, value in json.loads(file_content).items():
+                        lang_translation[key] = value
 
-            self._translations[lang] = translations
+            translations[lang] = lang_translation
+        
+        return translations
 
-        # print(self._translations)
-
-    def get_cog_translations(self, lang, *, type, name):
+    def _get_translations(self, lang, *, type, name):
         """
         Command = "c";
         Event = "e";
         Function = "f"
-        """
-        default_translation = self._translations[self.default_language][f"{type}_{name}"]
-        translation = self._translations[lang].get(f"{type}_{name}", default_translation)
+        """ 
+        _name = type.value + "_" + name
+        
+        default_translation = self._translations[DEFAULT_LANGUAGE][_name]
+        translation = self._translations[lang].get(_name, default_translation)
         return translation
     
     def command(self, lang, command_name):
-        command_translations = self.get_cog_translations(lang, type="c", name=command_name)
+        command_translations = self._get_translations(lang, type=TypeTranslation.command, name=command_name)
         return command_translations
         
     def event(self, lang, event_name):
-        event_translations = self.get_cog_translations(lang, type="e", name=event_name)
+        event_translations = self._get_translations(lang, type=TypeTranslation.event, name=event_name)
         return event_translations
     
     def function(self, lang, function_name):
-        function_translations = self.get_cog_translations(lang, type="e", name=function_name)
+        function_translations = self._get_translations(lang, type=TypeTranslation.func, name=function_name)
         return function_translations
+
+if __name__ == "__main__":
+    translations = Translations(os.path.join("resource/lang"))
+    translation = translations.command('es', 'avatar')
+    
+    print(translation)
