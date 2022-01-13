@@ -196,5 +196,5 @@ class OnekiBot(utils.commands.AutoShardedBot):
         print("goodbye!")
 
     def run(self):
-        token = env.TOKEN_DISCORD_DEV or env.TOKEN_DISCORD
+        token = env.DISCORD_DEV_TOKEN or env.DISCORD_TOKEN
         super().run(token, reconnect=True)
