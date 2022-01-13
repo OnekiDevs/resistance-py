@@ -3,6 +3,7 @@ from io import BytesIO
 from PIL import Image, ImageDraw, ImageFont, ImageOps
 
 import utils
+from utils import env
 from utils.context import Context
 from utils.views import confirm, forms
 
@@ -71,7 +72,7 @@ class Game:
     async def get_new_link(self):
         response = await self.ctx.session.post(
             f"https://lichess.org/api/tournament",
-            headers={'Content-Type': 'application/json', 'Authorization': f"Bearer {utils.env.TOKEN_LICHESS}"},
+            headers={'Content-Type': 'application/json', 'Authorization': f"Bearer {env.TOKEN_LICHESS}"},
             json={'name':f"LR Tournament 2021", 
                     'clockTime': 5, 
                     'clockIncrement': 3, 
