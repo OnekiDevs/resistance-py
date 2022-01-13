@@ -20,5 +20,40 @@
         "embed": {"title": "A partir de ahora {} se encuentra AFK"},
         "max_name_length": "{} tu nombre es demasiado largo!",
         "no_permissions": "¡Me faltan permisos para realizar esta accion!"
+    },
+    "e_afk": {
+        "embed": {
+            "title": "{} esta afk",
+            "reason": "Razón: {}"
+        },
+        "no_longer_afk": "{} ya no esta afk"
+    },
+    "c_profile": {
+        "embed": {
+            "author":"Perfil del usuario {}",
+            "footer":"Solicitado por {}"
+        }
+    },
+    "i_profile": {
+        "avatar": {
+            "embed": {
+                "author": "Avatar de {}",
+                "footer": "Solicitado por {}"
+            }
+        },
+        "banner": {
+            "embed": {
+                "author": "Banner de {}",
+                "footer": "Solicitado por {}"
+            }
+        },
+        "info": {
+            "no_roles": "Ninguno",
+            "embed" : {
+                "title" : "Roles",
+                "fields": ["Actividad:", "Cuenta creada:", "Se unio al servidor:", "Color:", "ID:", "Estado:"],
+                "footer" : "Solicitado por {}"
+            }   
+        }
     }
 }
