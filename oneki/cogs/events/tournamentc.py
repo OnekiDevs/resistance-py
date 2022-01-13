@@ -205,7 +205,7 @@ class Tournament_Chess(utils.commands.Cog):
     async def remove_player(self, ctx: Context, member: utils.discord.Member):
         player = Player(ctx, member.id)
         if await player.eliminated() == False:
-            view = confirm.Confirm()
+            view = confirm.View()
             await ctx.send(f"Seguro que quieres descalificar a {member.name}#{member.discriminator}?", view=view)
 
             await view.wait()
