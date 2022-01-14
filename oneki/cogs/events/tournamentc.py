@@ -85,8 +85,10 @@ class Game:
         return f"https://lichess.org/tournament/{data['id']}"
         
     async def start(self):
-        if self.playing is None:
-            if self.waiting == False:
+        playing_doc = await self._games_doc_ref.get()
+        if playing_doc.exists and playing_doc.to_dict().get("playing"):
+            waiting_doc = await self._waiting_doc_ref.get()
+            if waiting_doc.exists == False:
                 await self.ctx.send("Nop, nada que ver por aqui, la partida no existe o ya fue terminada <:awita:852216204512329759>")
                 return None
 
@@ -110,7 +112,8 @@ class Game:
             return None
     
     async def winner(self, user_id):
-        if self.playing:
+        playing_doc = await self._games_doc_ref.get()
+        if playing_doc.exists and playing_doc.to_dict().get("playing"):
             opponents = self.opponents()
             data = self._games_doc.to_dict().get("playing")
             data['round'] = self.round()
@@ -135,7 +138,7 @@ class Game:
             await self.ctx.send("No se puede definir a un ganador porque este juego no se a iniciado 🙄")
 
     async def vs_image(self):
-        if self.opponents is not None:
+        if self.opponents() is not None:
             img = Image.open("resource/img/vs_template.png")
             num = 0
             for player_id in self.opponents.keys():
