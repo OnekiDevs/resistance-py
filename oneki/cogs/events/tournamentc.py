@@ -81,7 +81,7 @@ class Game:
         )
         
         data = await response.json()
-        await ctx.send(data)
+        await self.ctx.send(data)
         return f"https://lichess.org/tournament/{data['id']}"
         
     async def start(self):
