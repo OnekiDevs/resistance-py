@@ -101,7 +101,8 @@ class Game:
 
             for role in self.ctx.guild.roles:
                 if role.id == 913036870701682699:
-                    for player_id in self.opponents.keys():
+                    opponents = await self.opponents()
+                    for player_id in opponents.keys():
                         object_member: utils.discord.Member = await self.ctx.guild.fetch_member(int(player_id))
                         await object_member.add_roles(role)
                     
@@ -114,7 +115,7 @@ class Game:
     async def winner(self, user_id):
         playing_doc = await self._games_doc_ref.get()
         if playing_doc.exists and playing_doc.to_dict().get("playing"):
-            opponents = self.opponents()
+            opponents = await self.opponents()
             data = playing_doc.to_dict().get("playing")
             data['round'] = self.round()
             data.pop("game_id")
@@ -138,10 +139,10 @@ class Game:
             await self.ctx.send("No se puede definir a un ganador porque este juego no se a iniciado 🙄")
 
     async def vs_image(self):
-        if self.opponents() is not None:
+        opponents = await self.opponents()
+        if opponents is not None:
             img = Image.open("resource/img/vs_template.png")
             num = 0
-            opponents = await self.opponents()
             for player_id in opponents.keys():
                 # BytesIO(object_player.data.get('pfp').split('=')[0]+"=128")
                 object_user: utils.discord.User = await self.ctx.bot.fetch_user(int(player_id))
