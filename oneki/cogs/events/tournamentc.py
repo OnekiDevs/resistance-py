@@ -92,7 +92,7 @@ class Game:
                 await self.ctx.send("Nop, nada que ver por aqui, la partida no existe o ya fue terminada <:awita:852216204512329759>")
                 return None
 
-            data = self._waiting_doc.to_dict()
+            data = waiting_doc.to_dict()
             data["game_id"] = self.id
             data["game_links"] = [await self.get_new_link()]
 
@@ -115,7 +115,7 @@ class Game:
         playing_doc = await self._games_doc_ref.get()
         if playing_doc.exists and playing_doc.to_dict().get("playing"):
             opponents = self.opponents()
-            data = self._games_doc.to_dict().get("playing")
+            data = playing_doc.to_dict().get("playing")
             data['round'] = self.round()
             data.pop("game_id")
             for player_id, player_object in opponents.items():
@@ -141,7 +141,8 @@ class Game:
         if self.opponents() is not None:
             img = Image.open("resource/img/vs_template.png")
             num = 0
-            for player_id in self.opponents.keys():
+            opponents = await self.opponents()
+            for player_id in opponents.keys():
                 # BytesIO(object_player.data.get('pfp').split('=')[0]+"=128")
                 object_user: utils.discord.User = await self.ctx.bot.fetch_user(int(player_id))
                 pfp = Image.open(BytesIO(await object_user.avatar.with_size(128).read()))
