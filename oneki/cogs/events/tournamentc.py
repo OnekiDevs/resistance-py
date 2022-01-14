@@ -86,7 +86,7 @@ class Game:
         
     async def start(self):
         playing_doc = await self._games_doc_ref.get()
-        if playing_doc.exists and playing_doc.to_dict().get("playing"):
+        if playing_doc.exists and utils.is_empty(playing_doc.to_dict().get("playing")):
             waiting_doc = await self._waiting_doc_ref.get()
             if waiting_doc.exists == False:
                 await self.ctx.send("Nop, nada que ver por aqui, la partida no existe o ya fue terminada <:awita:852216204512329759>")
