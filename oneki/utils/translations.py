@@ -10,6 +10,7 @@ DEFAULT_LANGUAGE = "en"
 
 class TypeTranslation(Enum):
     command = "c"
+    interaction = "i"
     event = "e"
     func = "f"
 
@@ -50,6 +51,10 @@ class Translations:
         command_translations = self._get_translations(lang, type=TypeTranslation.command, name=command_name)
         return command_translations
         
+    def interaction(self, lang, interaction_name):
+        command_translations = self._get_translations(lang, type=TypeTranslation.interaction, name=interaction_name)
+        return command_translations
+    
     def event(self, lang, event_name):
         event_translations = self._get_translations(lang, type=TypeTranslation.event, name=event_name)
         return event_translations
@@ -57,6 +62,7 @@ class Translations:
     def function(self, lang, function_name):
         function_translations = self._get_translations(lang, type=TypeTranslation.func, name=function_name)
         return function_translations
+
 
 if __name__ == "__main__":
     translations = Translations(os.path.join("resource/lang"))

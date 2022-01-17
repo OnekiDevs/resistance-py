@@ -1,5 +1,7 @@
-from discord.ext import tasks
+import discord
 import utils
+from PIL import Image
+from utils.views import profile
 from utils.context import Context
 
 
@@ -21,10 +23,35 @@ class User(utils.commands.Cog):
         
         self.bot.loop.run_until_complete(coro())
         return afks
-        
+    
     @utils.commands.command()
-    async def avatar(self, ctx: Context, member: utils.discord.Member=None):
-        member = ctx.author if member == None else member
+    async def profile(self, ctx: Context, member: utils.discord.Member = None):
+        member = member or ctx.author
+        view = profile.View(ctx, member)
+        
+        if member.banner is None:
+            default_banner = Image.new("RGB", (600, 240), member.color.value)
+            default_banner.save("resource/img/color.png")
+            channel = await self.bot.fetch_channel(885674115946643456)
+            message = await channel.send(file=utils.discord.File(
+                fp="resource/img/color.png",
+                filename=f"banner_{member.id}.png"
+            ))
+            
+            banner = message.attachments[0]
+        else:
+            banner = member.banner.url
+
+        embed = utils.discord.Embed(colour=member.color, timestamp=utils.utcnow())
+        embed.set_author(name=ctx.translation["embed"]["author"].format(member))
+        embed.set_image(url=banner)
+        embed.set_footer(text=ctx.translation["embed"]["footer"].format(ctx.author.name), icon_url=ctx.author.avatar.url)
+
+        await ctx.send(embed=embed, view=view)
+    
+    @utils.commands.command()
+    async def avatar(self, ctx: Context, member: utils.discord.Member = None):
+        member = member or ctx.author
         avatar = member.guild_avatar.url if member.guild_avatar is not None else member.avatar.url
         
         embed = utils.discord.Embed(colour=member.color, timestamp=utils.utcnow())
@@ -36,7 +63,7 @@ class User(utils.commands.Cog):
 
     @utils.commands.command()
     async def info(self, ctx: Context, member: utils.discord.Member=None):
-        member = ctx.author if member == None else member
+        member = member or ctx.author
         try: roles = "".join([role.mention for role in member.roles])
         except: roles = ctx.translation['no_roles']
         

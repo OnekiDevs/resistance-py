@@ -17,6 +17,12 @@ def check_links(string):
     regex = r"(?i)\b((?:https?://|www\d{0,3}[.]|[a-z0-9.\-]+[.][a-z]{2,4}/)(?:[^\s()<>]+|\(([^\s()<>]+|(\([^\s()<>]+\)))*\))+(?:\(([^\s()<>]+|(\([^\s()<>]+\)))*\)|[^\s`!()\[\]{};:'\".,<>?«»“”‘’]))"
     return re.findall(regex, string)
 
+def color_hex(_hex: str): 
+    sixteenIntegerHex = int(_hex.replace("#", ""), 16)
+    readableHex = int(hex(sixteenIntegerHex), 0)
+
+    return readableHex
+
 async def delete_collection(collection_ref):
     async for doc_ref in collection_ref.list_documents():
         async for subcollection_ref in doc_ref.collections():

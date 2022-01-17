@@ -165,8 +165,11 @@ class OnekiBot(utils.commands.AutoShardedBot):
             
             await channel.send(f"**Context:**\n```py\n{msg}\n```", embed=embed)
 
+    async def get_context(self, message, *, cls=context.Context):
+        return await super().get_context(message, cls=cls)
+
     async def process_commands(self, message):
-        ctx = await self.get_context(message, cls=context.Context)
+        ctx = await self.get_context(message)
 
         if message.author.bot:
             return
@@ -193,6 +196,5 @@ class OnekiBot(utils.commands.AutoShardedBot):
         print("goodbye!")
 
     def run(self):
-        token = env.TOKEN_DISCORD_DEV if env.TOKEN_DISCORD_DEV is not None else env.TOKEN_DISCORD
+        token = env.TOKEN_DISCORD_DEV or env.TOKEN_DISCORD
         super().run(token, reconnect=True)
-
