@@ -68,9 +68,10 @@ class Game:
             return {player_id: Player(self.ctx, player_id) for player_id in playing_doc.to_dict().get("playing").get("opponents")}
         else: return None
 
-    async def get_new_link(self):
-        response = await self.ctx.session.post(
-            f"https://lichess.org/api/tournament",
+    @staticmethod
+    async def get_new_link(session):
+        response = await session.post(
+            "https://lichess.org/api/tournament",
             headers={'Content-Type': 'application/json', 'Authorization': f"Bearer {utils.env.TOKEN_LICHESS}"},
             json={'name':f"LR Tournament 2021", 
                     'clockTime': 5, 
@@ -216,6 +217,11 @@ class Tournament_Chess(utils.commands.Cog):
                 await ctx.send(f"{member.name}#{member.discriminator} fue descalificado :(")
         else:
             await ctx.send(f"{member.name}#{member.discriminator} ya esta descalificado o no esta en la lista de participantes 🙄")
+
+    @utils.commands.command(hidden=True)
+    @utils.commands.has_permissions(administrator=True)
+    async def generate_link(self, ctx: Context):
+        await ctx.send(await Game.get_new_link(ctx.session))
 
     @utils.commands.command(hidden=True)
     @utils.commands.has_permissions(administrator=True)
