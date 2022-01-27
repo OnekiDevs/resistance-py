@@ -1,4 +1,3 @@
-import discord
 import utils
 from PIL import Image
 from utils.views import profile
