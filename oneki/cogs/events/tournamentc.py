@@ -69,9 +69,10 @@ class Game:
             return {player_id: Player(self.ctx, player_id) for player_id in playing_doc.to_dict().get("playing").get("opponents")}
         else: return None
 
-    async def get_new_link(self):
-        response = await self.ctx.session.post(
-            f"https://lichess.org/api/tournament",
+    @staticmethod
+    async def get_new_link(session):
+        response = await session.post(
+            "https://lichess.org/api/tournament",
             headers={'Content-Type': 'application/json', 'Authorization': f"Bearer {env.LICHESS_TOKEN}"},
             json={'name':f"LR Tournament 2021", 
                     'clockTime': 5, 
@@ -81,16 +82,17 @@ class Game:
         )
         
         data = await response.json()
-        print(data['id'])
         return f"https://lichess.org/tournament/{data['id']}"
         
     async def start(self):
-        if self.playing is None:
-            if self.waiting == False:
+        playing_doc = await self._games_doc_ref.get()
+        if playing_doc.exists and utils.is_empty(playing_doc.to_dict().get("playing")):
+            waiting_doc = await self._waiting_doc_ref.get()
+            if waiting_doc.exists == False:
                 await self.ctx.send("Nop, nada que ver por aqui, la partida no existe o ya fue terminada <:awita:852216204512329759>")
                 return None
 
-            data = self._waiting_doc.to_dict()
+            data = waiting_doc.to_dict()
             data["game_id"] = self.id
             data["game_links"] = [await self.get_new_link()]
 
@@ -99,7 +101,8 @@ class Game:
 
             for role in self.ctx.guild.roles:
                 if role.id == 913036870701682699:
-                    for player_id in self.opponents.keys():
+                    opponents = await self.opponents()
+                    for player_id in opponents.keys():
                         object_member: utils.discord.Member = await self.ctx.guild.fetch_member(int(player_id))
                         await object_member.add_roles(role)
                     
@@ -110,9 +113,10 @@ class Game:
             return None
     
     async def winner(self, user_id):
-        if self.playing:
-            opponents = self.opponents()
-            data = self._games_doc.to_dict().get("playing")
+        playing_doc = await self._games_doc_ref.get()
+        if playing_doc.exists and playing_doc.to_dict().get("playing"):
+            opponents = await self.opponents()
+            data = playing_doc.to_dict().get("playing")
             data['round'] = self.round()
             data.pop("game_id")
             for player_id, player_object in opponents.items():
@@ -135,10 +139,11 @@ class Game:
             await self.ctx.send("No se puede definir a un ganador porque este juego no se a iniciado 🙄")
 
     async def vs_image(self):
-        if self.opponents is not None:
+        opponents = await self.opponents()
+        if opponents is not None:
             img = Image.open("resource/img/vs_template.png")
             num = 0
-            for player_id in self.opponents.keys():
+            for player_id in opponents.keys():
                 # BytesIO(object_player.data.get('pfp').split('=')[0]+"=128")
                 object_user: utils.discord.User = await self.ctx.bot.fetch_user(int(player_id))
                 pfp = Image.open(BytesIO(await object_user.avatar.with_size(128).read()))
@@ -217,6 +222,11 @@ class Tournament_Chess(utils.commands.Cog):
                 await ctx.send(f"{member.name}#{member.discriminator} fue descalificado :(")
         else:
             await ctx.send(f"{member.name}#{member.discriminator} ya esta descalificado o no esta en la lista de participantes 🙄")
+
+    @utils.commands.command(hidden=True)
+    @utils.commands.has_permissions(administrator=True)
+    async def generate_link(self, ctx: Context):
+        await ctx.send(await Game.get_new_link(ctx.session))
 
     @utils.commands.command(hidden=True)
     @utils.commands.has_permissions(administrator=True)
