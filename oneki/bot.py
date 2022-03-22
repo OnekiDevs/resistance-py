@@ -10,9 +10,6 @@ Hola!, soy Oneki un bot multitareas y estare muy feliz en ayudarte en los que ne
 """
 
 initial_extensions = (
-    "cogs.events.tournamentc",
-    # "cogs.events.christmas",
-
     "cogs.user",
 )
 
@@ -48,61 +45,38 @@ class OnekiBot(utils.commands.AutoShardedBot):
         
         self.db = db.async_client()
         self.translations = translations.Translations()
-        self.session = aiohttp.ClientSession(loop=self.loop)
 
-        # prefixes[guild_id]: list
-        # languages[guild_id]: str(lang)
-        self.prefixes, self.languages = self._get_guild_settings()
-
-        # user_id mapped to True
-        # these are users globally blacklisted
-        self.blacklist = self._get_blacklist()
-
-        # cogs unload
-        for extension in initial_extensions:
-            try:
-                self.load_extension(extension)
-            except Exception as e:
-                print(f'Failed to load extension {extension}.', file=sys.stderr)
-                traceback.print_exc()
-
-    def _get_guild_settings(self):
+    async def _get_guild_settings(self):
         # guild_id: list
         prefixes = {}
         # guild_id: str(lang)
         languages = {}
         
         collection_ref = self.db.collection("guilds")
-        async def iterator():
-            async for doc_ref in collection_ref.list_documents():
-                doc = await doc_ref.get()
-                if doc.exists: 
-                    doc_content = doc.to_dict()
-                    if doc_content.get("prefixes") is not None:
-                        prefixes[doc.id] = doc_content.get("prefixes")
-                    
-                    if doc_content.get("lang") is not None:
-                        languages[doc.id] = doc_content.get("lang")
+        async for doc_ref in collection_ref.list_documents():
+            doc = await doc_ref.get()
+            if doc.exists: 
+                doc_content = doc.to_dict()
+                if doc_content.get("prefixes") is not None:
+                    prefixes[doc.id] = doc_content.get("prefixes")
+                
+                if doc_content.get("lang") is not None:
+                    languages[doc.id] = doc_content.get("lang")
         
-        self.loop.run_until_complete(iterator())
         return prefixes, languages
 
-    def _get_blacklist(self):
+    async def _get_blacklist(self):
         # {users: {id, ...}, guilds: {id, ...}}
         blacklist = {"users": set(), "guilds": set()}
+
+        guilds_doc = await self.db.document("blacklist/guilds").get()
+        if guilds_doc.exists:
+            blacklist["guilds"] = guilds_doc.to_dict().keys()
+            
+        users_doc = await self.db.document("blacklist/users").get()
+        if users_doc.exists:
+            blacklist["users"] = set(users_doc.to_dict().keys())
         
-        users_doc_ref = self.db.document("blacklist/users")
-        guilds_doc_ref = self.db.document("blacklist/guilds")
-        async def coro():
-            guilds_doc = await guilds_doc_ref.get()
-            if guilds_doc.exists:
-                blacklist["guilds"] = guilds_doc.to_dict().keys()
-                
-            users_doc = await users_doc_ref.get()
-            if users_doc.exists:
-                blacklist["users"] = set(users_doc.to_dict().keys())
-        
-        self.loop.run_until_complete(coro())
         return blacklist
 
     def get_guild_prefixes(self, guild, *, local_inject=_prefix_callable):
@@ -136,7 +110,27 @@ class OnekiBot(utils.commands.AutoShardedBot):
             return True if object.id in self.blacklist['guilds'] else False
         return True if object.id in self.blacklist['users'] else False
 
+    async def setup_hook(self) -> None:
+        self.session = aiohttp.ClientSession(loop=self.loop)
+        
+        # prefixes[guild_id]: list
+        # languages[guild_id]: str(lang)
+        self.prefixes, self.languages = await self._get_guild_settings()
+
+        # user_id mapped to True
+        # these are users globally blacklisted
+        self.blacklist = await self._get_blacklist()
+        
+        # cogs unload
+        for ext in initial_extensions:
+            try:
+                await self.load_extension(ext)
+            except Exception as e:
+                print(f'Failed to load extension {ext}.', file=sys.stderr)
+                traceback.print_exc()
+                
     async def on_ready(self):
+        await self.tree.sync()
         activity = utils.discord.Activity(type=utils.discord.ActivityType.watching, name=f"{len(self.guilds)} servidores")
         await self.change_presence(status=utils.discord.Status.idle, activity=activity)
 
