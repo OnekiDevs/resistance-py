@@ -1,73 +1,51 @@
 import utils
 from PIL import Image
-from utils.views import profile
+from io import BytesIO
 from utils.context import Context
+from utils.views import color
 
 
-class User(utils.commands.Cog):
-    def __init__(self, bot):
+class BaseCommands:
+    def __init__(self, bot) -> None:
         self.bot = bot
-        self.afks = self._get_afks()
         
-    def _get_afks(self):
-        # user_id: dict(reason, time)
-        afks = {}
-
-        doc_ref = self.bot.db.document("users/afks")
-        async def coro(): 
-            doc = await doc_ref.get()
-            if doc.exists:
-                for key, value in doc.to_dict().items():
-                    afks[key] = value
-        
-        self.bot.loop.run_until_complete(coro())
-        return afks
-    
-    @utils.commands.command()
-    async def profile(self, ctx: Context, member: utils.discord.Member = None):
-        member = member or ctx.author
-        view = profile.View(ctx, member)
+    async def profile(self, t1, t2, member: utils.discord.Member, author):
+        view = ProfileView(t2, self, member, author)
         
         if member.banner is None:
-            default_banner = Image.new("RGB", (600, 240), member.color.value)
-            default_banner.save("resource/img/color.png")
-            channel = await self.bot.fetch_channel(885674115946643456)
-            message = await channel.send(file=utils.discord.File(
-                fp="resource/img/color.png",
-                filename=f"banner_{member.id}.png"
+            default_banner = Image.new("RGB", (600, 240), member.colour.value)
+            banner = await utils.send_file_and_get_url(self.bot, utils.discord.File(
+                fp=BytesIO(default_banner.tobytes()),
+                filename=f"default_banner_{member.id}.png"
             ))
-            
-            banner = message.attachments[0]
         else:
             banner = member.banner.url
 
         embed = utils.discord.Embed(colour=member.color, timestamp=utils.utcnow())
-        embed.set_author(name=ctx.translation["embed"]["author"].format(member))
+        embed.set_author(name=t1["embed"]["author"].format(member))
         embed.set_image(url=banner)
-        embed.set_footer(text=ctx.translation["embed"]["footer"].format(ctx.author.name), icon_url=ctx.author.avatar.url)
+        embed.set_footer(text=t1["embed"]["footer"].format(author.name), icon_url=author.avatar.url)
 
-        await ctx.send(embed=embed, view=view)
-    
-    @utils.commands.command()
-    async def avatar(self, ctx: Context, member: utils.discord.Member = None):
-        member = member or ctx.author
+        return embed, view
+        
+    async def avatar(self, translation, member: utils.discord.Member, author):
         avatar = member.guild_avatar.url if member.guild_avatar is not None else member.avatar.url
         
         embed = utils.discord.Embed(colour=member.color, timestamp=utils.utcnow())
-        embed.set_author(name=ctx.translation["embed"]["author"].format(member), url=avatar)
+        embed.set_author(name=translation["embed"]["author"].format(member), url=avatar)
         embed.set_image(url=avatar)
-        embed.set_footer(text=ctx.translation["embed"]["footer"].format(ctx.author.name), icon_url=ctx.author.avatar.url)
+        embed.set_footer(text=translation["embed"]["footer"].format(author.name), icon_url=author.avatar.url)
 
-        await ctx.send(embed=embed)
+        return embed
 
-    @utils.commands.command()
-    async def info(self, ctx: Context, member: utils.discord.Member=None):
-        member = member or ctx.author
-        try: roles = "".join([role.mention for role in member.roles])
-        except: roles = ctx.translation['no_roles']
+    async def info(self, translation, member: utils.discord.Member, author):
+        try: 
+            roles = "".join([role.mention for role in member.roles])
+        except: 
+            roles = translation['no_roles']
         
         embed = utils.discord.Embed(
-            title=ctx.translation["embed"]["title"],
+            title=translation["embed"]["title"],
             description=roles,
             color=member.color,
             timestamp=utils.utcnow(), 
@@ -77,17 +55,125 @@ class User(utils.commands.Cog):
         
         if member.activity is not None: 
             activity = member.activity if isinstance(member.activity, utils.discord.CustomActivity) else member.activity.name
-            embed.add_field(name=ctx.translation["embed"]["fields"][0], value=f"```{activity}```", inline=False)
+            embed.add_field(name=translation["embed"]["fields"][0], value=f"```{activity}```", inline=False)
         
-        embed.add_field(name=ctx.translation["embed"]["fields"][1], value=f"```{member.created_at}```")
-        embed.add_field(name=ctx.translation["embed"]["fields"][2], value=f"```{member.joined_at}```")
-        embed.add_field(name=ctx.translation["embed"]["fields"][3], value=f"```{member.color}```")
-        embed.add_field(name=ctx.translation["embed"]["fields"][4], value=f"```{member.id}```")
-        embed.add_field(name=ctx.translation["embed"]["fields"][5], value=f"```{member.raw_status}```")
+        embed.add_field(name=translation["embed"]["fields"][1], value=f"```{member.created_at}```")
+        embed.add_field(name=translation["embed"]["fields"][2], value=f"```{member.joined_at}```")
+        embed.add_field(name=translation["embed"]["fields"][3], value=f"```{member.color}```")
+        embed.add_field(name=translation["embed"]["fields"][4], value=f"```{member.id}```")
+        embed.add_field(name=translation["embed"]["fields"][5], value=f"```{member.raw_status}```")
         
-        embed.set_footer(text=ctx.translation["embed"]["footer"].format(ctx.author.name), icon_url=ctx.author.avatar.url)
+        embed.set_footer(text=translation["embed"]["footer"].format(author.name), icon_url=author.avatar.url)
 
-        await ctx.send(embed = embed)
+        return embed
+
+
+class ProfileView(color.View): 
+    def __init__(self, translation, bc: BaseCommands, member: utils.discord.Member, author):
+        super().__init__(timeout=180)
+        self.bc = bc
+        self.member = member
+        self.author = author
+        self.translation = translation
+        
+    @utils.discord.ui.button(label="Avatar", style=utils.discord.ButtonStyle.secondary)
+    async def avatar(self, button: utils.discord.ui.Button, interaction: utils.discord.Interaction):
+        self.change_color(button)
+        embed = await self.bc.avatar(self.translation["avatar"], self.member, self.author)
+        await interaction.response.edit_message(embed=embed, view=self)
+        
+    @utils.discord.ui.button(label="Banner", emoji="🖼️", style=utils.discord.ButtonStyle.secondary)
+    async def banner(self, button: utils.discord.ui.Button, interaction: utils.discord.Interaction):
+        self.change_color(button)
+        translation = self.translation["banner"]
+        banner = self.member.banner.url if self.member.banner is not None else "https://media.discordapp.net/attachments/885674115946643463/931022708030980126/Nuevo_proyecto.png"
+        
+        embed = utils.discord.Embed(colour=self.member.color, timestamp=utils.utcnow())
+        embed.set_author(name=translation["embed"]["author"].format(self.member), url=banner)
+        embed.set_image(url=banner)
+        embed.set_footer(text=translation["embed"]["footer"].format(self.author.name), icon_url=self.author.avatar.url)
+
+        await interaction.response.edit_message(embed=embed, view=self)
+        
+    @utils.discord.ui.button(label="Information", emoji="📑", style=utils.discord.ButtonStyle.secondary)
+    async def information(self, button: utils.discord.ui.Button, interaction: utils.discord.Interaction):
+        self.change_color(button)
+        embed = await self.bc.info(self.translation["info"], self.member, self.author)
+        await interaction.response.edit_message(embed=embed, view=self)
+
+
+class User(utils.commands.Cog):
+    def __init__(self, bot):
+        self.bot = bot
+        self.bc = BaseCommands(bot)
+        self.afks = {}
+        
+    async def cog_load(self):
+        self.afks = await self._get_afks()
+        
+    async def _get_afks(self):
+        # user_id: dict(reason, time)
+        afks = {}
+
+        doc = await self.bot.db.document("users/afks").get()
+        if doc.exists:
+            for key, value in doc.to_dict().items():
+                afks[key] = value
+        
+        return afks
+    
+    # traditional commands
+    
+    @utils.commands.command(name="profile")
+    async def c_profile(self, ctx: Context, member: utils.discord.Member = None):
+        member = member or ctx.author
+        i_translation = self.bot.translations.interaction(ctx.lang, "profile")
+        embed, view = await self.bc.profile(ctx.translation, i_translation, member, ctx.author)
+
+        await ctx.send(embed=embed, view=view)
+
+    @utils.commands.command(name="avatar")
+    async def c_avatar(self, ctx: Context, member: utils.discord.Member = None):
+        member = member or ctx.author
+        embed = await self.bc.avatar(ctx.translation, member, ctx.author)
+
+        await ctx.send(embed=embed)
+
+    @utils.commands.command(name="info")
+    async def c_info(self, ctx: Context, member: utils.discord.Member = None):
+        member = member or ctx.author
+        embed = await self.bc.info(ctx.translation, member, ctx.author)
+
+        await ctx.send(embed=embed)
+
+    # slash commands 
+
+    @utils.app_commands.command(name="profile")
+    async def s_profile(self, interaction: utils.discord.Interaction, member: utils.discord.Member = None):
+        member = member or interaction.message.author
+        t1 = self.bot.translations.command(self.bot.get_guild_lang(str(interaction.guild_id)), "profile")
+        t2 = self.bot.translations.interaction(self.bot.get_guild_lang(str(interaction.guild_id)), "profile")
+        embed, view = await self.bc.profile(t1, t2, member, interaction.message.author)
+
+        await interaction.channel.send(embed=embed, view=view)
+
+    @utils.app_commands.command(name="avatar")
+    async def s_avatar(self, interaction: utils.discord.Interaction, member: utils.discord.Member = None):
+        member = member or interaction.message.author
+        translation = self.bot.translations.command(self.bot.get_guild_lang(str(interaction.guild_id)), "avatar")
+        embed = await self.bc.avatar(translation, member, interaction.message.author)
+
+        await interaction.channel.send(embed=embed)
+        
+    @utils.app_commands.command(name="info")
+    async def s_info(self, interaction: utils.discord.Interaction, member: utils.discord.Member = None):
+        member = member or interaction.message.author
+        translation = self.bot.translations.command(self.bot.get_guild_lang(str(interaction.guild_id)), "info")
+        embed = await self.bc.info(translation, member, interaction.message.author)
+
+        await interaction.channel.send(embed=embed)
+
+    # afk
 
     async def add_to_afk(self, user_id, *, reason):
         data = {"reason": reason, "time": utils.utcnow()}
@@ -173,5 +259,6 @@ class User(utils.commands.Cog):
                     await message.channel.send(embed=embed, delete_after=15.0)
         
 
-def setup(bot):
-    bot.add_cog(User(bot))
+async def setup(bot):
+    await bot.add_cog(User(bot))
+    
