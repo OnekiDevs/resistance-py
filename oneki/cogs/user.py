@@ -2,51 +2,52 @@ import utils
 from PIL import Image
 from io import BytesIO
 from typing import Optional
-from utils.context import Context
 from utils.views import color
+from utils.context import Context, Ctx
 
 
 class BaseCommands:
     def __init__(self, bot) -> None:
         self.bot = bot
         
-    async def profile(self, t1, t2, member: utils.discord.Member, author):
-        view = ProfileView(t2, self, member, author)
+    async def profile(self, ctx: Ctx, member: utils.discord.Member):
+        view = ProfileView(ctx, self, member)
         
         if member.banner is None:
             default_banner = Image.new("RGB", (600, 240), member.colour.value)
+            default_banner = default_banner.tobytes(encoder_name="default_banner")
             banner = await utils.send_file_and_get_url(self.bot, utils.discord.File(
-                fp=BytesIO(default_banner.tobytes()),
+                fp=BytesIO(default_banner),
                 filename=f"default_banner_{member.id}.png"
             ))
         else:
             banner = member.banner.url
 
         embed = utils.discord.Embed(colour=member.color, timestamp=utils.utcnow())
-        embed.set_author(name=t1["embed"]["author"].format(member))
+        embed.set_author(name=ctx.translation["embed"]["author"].format(member))
         embed.set_image(url=banner)
-        embed.set_footer(text=t1["embed"]["footer"].format(author.name), icon_url=author.avatar.url)
+        embed.set_footer(text=ctx.translation["embed"]["footer"].format(ctx.author.name), icon_url=ctx.author.avatar.url)
 
         return embed, view
         
-    async def avatar(self, translation, member: utils.discord.Member, author):
+    async def avatar(self, ctx: Ctx, member: utils.discord.Member):
         avatar = member.guild_avatar.url if member.guild_avatar is not None else member.avatar.url
         
         embed = utils.discord.Embed(colour=member.color, timestamp=utils.utcnow())
-        embed.set_author(name=translation["embed"]["author"].format(member), url=avatar)
+        embed.set_author(name=ctx.translation["embed"]["author"].format(member), url=avatar)
         embed.set_image(url=avatar)
-        embed.set_footer(text=translation["embed"]["footer"].format(author.name), icon_url=author.avatar.url)
+        embed.set_footer(text=ctx.translation["embed"]["footer"].format(ctx.author.name), icon_url=ctx.author.avatar.url)
 
         return embed
 
-    async def info(self, translation, member: utils.discord.Member, author):
+    async def info(self, ctx: Ctx, member: utils.discord.Member):
         try: 
             roles = "".join([role.mention for role in member.roles])
         except: 
-            roles = translation['no_roles']
+            roles = ctx.translation['no_roles']
         
         embed = utils.discord.Embed(
-            title=translation["embed"]["title"],
+            title=ctx.translation["embed"]["title"],
             description=roles,
             color=member.color,
             timestamp=utils.utcnow(), 
@@ -56,26 +57,26 @@ class BaseCommands:
         
         if member.activity is not None: 
             activity = member.activity if isinstance(member.activity, utils.discord.CustomActivity) else member.activity.name
-            embed.add_field(name=translation["embed"]["fields"][0], value=f"```{activity}```", inline=False)
+            embed.add_field(name=ctx.translation["embed"]["fields"][0], value=f"```{activity}```", inline=False)
         
-        embed.add_field(name=translation["embed"]["fields"][1], value=f"```{member.created_at}```")
-        embed.add_field(name=translation["embed"]["fields"][2], value=f"```{member.joined_at}```")
-        embed.add_field(name=translation["embed"]["fields"][3], value=f"```{member.color}```")
-        embed.add_field(name=translation["embed"]["fields"][4], value=f"```{member.id}```")
-        embed.add_field(name=translation["embed"]["fields"][5], value=f"```{member.raw_status}```")
+        embed.add_field(name=ctx.translation["embed"]["fields"][1], value=f"```{member.created_at}```")
+        embed.add_field(name=ctx.translation["embed"]["fields"][2], value=f"```{member.joined_at}```")
+        embed.add_field(name=ctx.translation["embed"]["fields"][3], value=f"```{member.color}```")
+        embed.add_field(name=ctx.translation["embed"]["fields"][4], value=f"```{member.id}```")
+        embed.add_field(name=ctx.translation["embed"]["fields"][5], value=f"```{member.raw_status}```")
         
-        embed.set_footer(text=translation["embed"]["footer"].format(author.name), icon_url=author.avatar.url)
+        embed.set_footer(text=ctx.translation["embed"]["footer"].format(ctx.author.name), icon_url=ctx.author.avatar.url)
 
         return embed
 
 
 class ProfileView(color.View): 
-    def __init__(self, translation, bc: BaseCommands, member: utils.discord.Member, author):
+    def __init__(self, ctx: Ctx, bc: BaseCommands, member: utils.discord.Member):
         super().__init__(timeout=180)
         self.bc = bc
         self.member = member
-        self.author = author
-        self.translation = translation
+        self.author = ctx.author
+        self.translation = ctx.bot.translations.interaction(ctx.lang, "profile")
         
     @utils.discord.ui.button(label="Avatar", style=utils.discord.ButtonStyle.secondary)
     async def avatar(self, button: utils.discord.ui.Button, interaction: utils.discord.Interaction):
@@ -128,22 +129,21 @@ class User(utils.commands.Cog):
     @utils.commands.command(name="profile")
     async def c_profile(self, ctx: Context, member: Optional[utils.discord.Member] = None):
         member = member or ctx.author
-        i_translation = self.bot.translations.interaction(ctx.lang, "profile")
-        embed, view = await self.bc.profile(ctx.translation, i_translation, member, ctx.author)
+        embed, view = await self.bc.profile(Ctx.from_context(ctx), member)
 
         await ctx.send(embed=embed, view=view)
 
     @utils.commands.command(name="avatar")
     async def c_avatar(self, ctx: Context, member: Optional[utils.discord.Member] = None):
         member = member or ctx.author
-        embed = await self.bc.avatar(ctx.translation, member, ctx.author)
+        embed = await self.bc.avatar(Ctx.from_context(ctx), member)
 
         await ctx.send(embed=embed)
 
     @utils.commands.command(name="info")
     async def c_info(self, ctx: Context, member: Optional[utils.discord.Member] = None):
         member = member or ctx.author
-        embed = await self.bc.info(ctx.translation, member, ctx.author)
+        embed = await self.bc.info(Ctx.from_context(ctx), member)
 
         await ctx.send(embed=embed)
 
@@ -152,25 +152,21 @@ class User(utils.commands.Cog):
     @utils.app_commands.command(name="profile")
     async def s_profile(self, interaction: utils.discord.Interaction, member: Optional[utils.discord.Member] = None):
         member = member or interaction.user
-        t1 = self.bot.translations.command(self.bot.get_guild_lang(str(interaction.guild_id)), "profile")
-        t2 = self.bot.translations.interaction(self.bot.get_guild_lang(str(interaction.guild_id)), "profile")
-        embed, view = await self.bc.profile(t1, t2, member, interaction.user)
+        embed, view = await self.bc.profile(Ctx.from_interaction(interaction), member)
 
         await interaction.response.send_message(embed=embed, view=view)
 
     @utils.app_commands.command(name="avatar")
     async def s_avatar(self, interaction: utils.discord.Interaction, member: Optional[utils.discord.Member] = None):
         member = member or interaction.user
-        translation = self.bot.translations.command(self.bot.get_guild_lang(str(interaction.guild_id)), "avatar")
-        embed = await self.bc.avatar(translation, member, interaction.user)
+        embed = await self.bc.avatar(Ctx.from_interaction(interaction), member)
 
         await interaction.response.send_message(embed=embed)
         
     @utils.app_commands.command(name="info")
     async def s_info(self, interaction: utils.discord.Interaction, member: Optional[utils.discord.Member] = None):
         member = member or interaction.user
-        translation = self.bot.translations.command(self.bot.get_guild_lang(str(interaction.guild_id)), "info")
-        embed = await self.bc.info(translation, member, interaction.user)
+        embed = await self.bc.info(Ctx.from_interaction(interaction), member)
         
         await interaction.response.send_message(embed=embed)
 
