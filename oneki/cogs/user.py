@@ -1,6 +1,7 @@
 import utils
 from PIL import Image
 from io import BytesIO
+from typing import Optional
 from utils.context import Context
 from utils.views import color
 
@@ -125,7 +126,7 @@ class User(utils.commands.Cog):
     # traditional commands
     
     @utils.commands.command(name="profile")
-    async def c_profile(self, ctx: Context, member: utils.discord.Member = None):
+    async def c_profile(self, ctx: Context, member: Optional[utils.discord.Member] = None):
         member = member or ctx.author
         i_translation = self.bot.translations.interaction(ctx.lang, "profile")
         embed, view = await self.bc.profile(ctx.translation, i_translation, member, ctx.author)
@@ -133,14 +134,14 @@ class User(utils.commands.Cog):
         await ctx.send(embed=embed, view=view)
 
     @utils.commands.command(name="avatar")
-    async def c_avatar(self, ctx: Context, member: utils.discord.Member = None):
+    async def c_avatar(self, ctx: Context, member: Optional[utils.discord.Member] = None):
         member = member or ctx.author
         embed = await self.bc.avatar(ctx.translation, member, ctx.author)
 
         await ctx.send(embed=embed)
 
     @utils.commands.command(name="info")
-    async def c_info(self, ctx: Context, member: utils.discord.Member = None):
+    async def c_info(self, ctx: Context, member: Optional[utils.discord.Member] = None):
         member = member or ctx.author
         embed = await self.bc.info(ctx.translation, member, ctx.author)
 
@@ -149,29 +150,29 @@ class User(utils.commands.Cog):
     # slash commands 
 
     @utils.app_commands.command(name="profile")
-    async def s_profile(self, interaction: utils.discord.Interaction, member: utils.discord.Member = None):
-        member = member or interaction.message.author
+    async def s_profile(self, interaction: utils.discord.Interaction, member: Optional[utils.discord.Member] = None):
+        member = member or interaction.user
         t1 = self.bot.translations.command(self.bot.get_guild_lang(str(interaction.guild_id)), "profile")
         t2 = self.bot.translations.interaction(self.bot.get_guild_lang(str(interaction.guild_id)), "profile")
-        embed, view = await self.bc.profile(t1, t2, member, interaction.message.author)
+        embed, view = await self.bc.profile(t1, t2, member, interaction.user)
 
-        await interaction.channel.send(embed=embed, view=view)
+        await interaction.response.send_message(embed=embed, view=view)
 
     @utils.app_commands.command(name="avatar")
-    async def s_avatar(self, interaction: utils.discord.Interaction, member: utils.discord.Member = None):
-        member = member or interaction.message.author
+    async def s_avatar(self, interaction: utils.discord.Interaction, member: Optional[utils.discord.Member] = None):
+        member = member or interaction.user
         translation = self.bot.translations.command(self.bot.get_guild_lang(str(interaction.guild_id)), "avatar")
-        embed = await self.bc.avatar(translation, member, interaction.message.author)
+        embed = await self.bc.avatar(translation, member, interaction.user)
 
-        await interaction.channel.send(embed=embed)
+        await interaction.response.send_message(embed=embed)
         
     @utils.app_commands.command(name="info")
-    async def s_info(self, interaction: utils.discord.Interaction, member: utils.discord.Member = None):
-        member = member or interaction.message.author
+    async def s_info(self, interaction: utils.discord.Interaction, member: Optional[utils.discord.Member] = None):
+        member = member or interaction.user
         translation = self.bot.translations.command(self.bot.get_guild_lang(str(interaction.guild_id)), "info")
-        embed = await self.bc.info(translation, member, interaction.message.author)
-
-        await interaction.channel.send(embed=embed)
+        embed = await self.bc.info(translation, member, interaction.user)
+        
+        await interaction.response.send_message(embed=embed)
 
     # afk
 
