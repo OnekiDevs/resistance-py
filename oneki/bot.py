@@ -21,6 +21,7 @@ def _prefix_callable(bot, msg):
         base.append('>')
     else:
         base.extend(bot.prefixes.get(str(msg.guild.id), ['?', '>']))
+    
     return base
 
 
@@ -33,6 +34,7 @@ class OnekiBot(utils.commands.AutoShardedBot):
             presences=True,
             voice_states=True,
             messages=True,
+            message_content=True,
             bans=True
         )
         
