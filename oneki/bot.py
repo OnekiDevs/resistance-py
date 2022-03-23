@@ -182,7 +182,12 @@ class OnekiBot(utils.commands.AutoShardedBot):
         # Si pingearon al bot
         if message.content in [f'<@!{self.user.id}>', f'<@{self.user.id}>']:
             translation = self.translations.event(self.get_guild_lang(message.guild.id), "ping")
-            await message.channel.send(translation.format(self.get_guild_prefixes(message.guild)))
+            prefixes = self.get_raw_guild_prefixes(message.guild)
+            if len(prefixes) == 1:
+                await message.channel.send(translation["one"].format(prefixes[0]))
+            else:
+                p = ", ".join([prefix for prefix in prefixes])
+                await message.channel.send(translation["more"].format(p))
 
         await self.process_commands(message)
 
