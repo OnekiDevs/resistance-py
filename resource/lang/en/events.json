@@ -1,0 +1,6 @@
+{
+    "e_ping": {
+        "one": "The current prefix is: {}",
+        "more": "The list of prefixes is: {}"
+    }
+}

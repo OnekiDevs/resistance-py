@@ -31,6 +31,11 @@ class Translations:
                     for key, value in json.loads(file_content).items():
                         lang_translation[key] = value
 
+            with open(path + f"/{lang}/events.json", "r") as f: 
+                file_content = f.read()
+                for key, value in json.loads(file_content).items():
+                    lang_translation[key] = value
+
             translations[lang] = lang_translation
         
         return translations

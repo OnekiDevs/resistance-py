@@ -1,0 +1,6 @@
+{
+    "e_ping": {
+        "one": "El prefijo actual es: {}",
+        "more": "La lista de prefijos es: {}"
+    }
+}
