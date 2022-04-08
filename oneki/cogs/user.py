@@ -15,7 +15,7 @@ class BaseCommands:
         
         if member.banner is None:
             default_banner = Image.new("RGB", (600, 240), member.colour.value)
-            default_banner = default_banner.tobytes(encoder_name="default_banner")
+            default_banner = default_banner.tobytes()
             banner = await utils.send_file_and_get_url(self.bot, utils.discord.File(
                 fp=BytesIO(default_banner),
                 filename=f"default_banner_{member.id}.png"
