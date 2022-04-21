@@ -54,5 +54,5 @@ class Ctx(BaseContext):
         
     @classmethod
     def from_interaction(cls, interaction: discord.Interaction):
-        return cls(interaction.user, interaction.channel, interaction.command,interaction.client)
+        return cls(interaction.user, interaction.channel, interaction.command, interaction.client)
     
