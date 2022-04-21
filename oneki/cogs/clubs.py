@@ -13,13 +13,13 @@ class IsNsfw(ui.View):
         self.value = False
         
     @ui.button(label="Yes", style=utils.discord.ButtonStyle.red)
-    async def yes(self, button: utils.discord.ui.Button, interaction: utils.discord.Interaction):
+    async def yes(self, interaction: utils.discord.Interaction, button: utils.discord.ui.Button):
         self.value = True
         await interaction.response.send_message(f"Gracias por tu solicitud, {interaction.user.name}!\nEspere la aprobación de los admins/mods ;)", ephemeral=True)
         self.stop()
         
     @ui.button(label="No", style=utils.discord.ButtonStyle.blurple)
-    async def no(self, button: utils.discord.ui.Button, interaction: utils.discord.Interaction):
+    async def no(self, interaction: utils.discord.Interaction, button: utils.discord.ui.Button):
         await interaction.response.send_message(f"Gracias por tu solicitud, {interaction.user.name}!\nEspere la aprobación de los admins/mods ;)", ephemeral=True)
         self.stop()
 
@@ -102,7 +102,7 @@ class Explorer(ui.View):
                 return embed
 
     @ui.button(label="Back", emoji="⬅️", style=utils.discord.ButtonStyle.green)
-    async def back(self, button: utils.discord.ui.Button, interaction: utils.discord.Interaction): 
+    async def back(self, interaction: utils.discord.Interaction, button: utils.discord.ui.Button): 
         if self.num != 0:
             self.num -= 1
         
@@ -111,7 +111,7 @@ class Explorer(ui.View):
         await interaction.response.edit_message(content="Club Explorer", embed=self.clubs[self.num][0], view=self)
     
     @ui.button(label="Join/Exit", style=utils.discord.ButtonStyle.red)
-    async def join_or_exit(self, button: utils.discord.ui.Button, interaction: utils.discord.Interaction): 
+    async def join_or_exit(self, interaction: utils.discord.Interaction, button: utils.discord.ui.Button): 
         _, data, doc_ref = self.clubs[self.num]
         channel = await interaction.client.fetch_channel(data["channel"])
         if str(interaction.user.id) in data.get("users", []): 
@@ -119,12 +119,12 @@ class Explorer(ui.View):
                 await interaction.response.send_message("Lo siento, pero no puedes salir del club hasta que termine tu sancion :/", ephemeral=True)
                 return
             
-            overwrites = {interaction.user: utils.discord.PermissionOverwrite(view_channel=False)}
+            overwrites = {**channel.overwrites, interaction.user: utils.discord.PermissionOverwrite(view_channel=False)}
             await doc_ref.update({"users": interaction.client.db.ArrayRemove([str(interaction.user.id)])})
         
             await interaction.response.send_message(f"Te has salido de {data['name']}", ephemeral=True)
         else: 
-            overwrites = {interaction.user: utils.discord.PermissionOverwrite(view_channel=True)}
+            overwrites = {**channel.overwrites, interaction.user: utils.discord.PermissionOverwrite(view_channel=True)}
             await doc_ref.update({"users": interaction.client.db.ArrayUnion([str(interaction.user.id)])})
             
             await interaction.response.send_message(f"Te has unido a {data['name']}", ephemeral=True)
@@ -139,7 +139,7 @@ class Explorer(ui.View):
         self.clubs[self.num] = [self.create_embed(owner, data), data, doc_ref]
     
     @ui.button(label="Next", emoji="➡️", style=utils.discord.ButtonStyle.green)
-    async def next(self, button: utils.discord.ui.Button, interaction: utils.discord.Interaction): 
+    async def next(self, interaction: utils.discord.Interaction, button: utils.discord.ui.Button): 
         self.num += 1
         try:
             embed = self.clubs[self.num][0]
@@ -299,6 +299,7 @@ class ClubModerator(utils.app_commands.Group, name="club_moderator"):
                     doc_ref = ctx.db.document(f"guilds/{interaction.guild_id}/clubs/{doc.id}")
                     channel = await interaction.client.fetch_channel(data["channel"])
                     overwrites = {
+                        **channel.overwrites,
                         member: utils.discord.PermissionOverwrite(send_messages=False, add_reactions=False),
                     }
                     
@@ -318,6 +319,7 @@ class ClubModerator(utils.app_commands.Group, name="club_moderator"):
             doc_ref = ctx.db.document(f"guilds/{interaction.guild_id}/clubs/{doc.id}")
             channel = await interaction.client.fetch_channel(doc.to_dict()["channel"])
             overwrites = {
+                **channel.overwrites,
                 member: utils.discord.PermissionOverwrite(send_messages=True, add_reactions=False),
             }
             
@@ -338,6 +340,7 @@ class ClubModerator(utils.app_commands.Group, name="club_moderator"):
                     doc_ref = ctx.db.document(f"guilds/{interaction.guild_id}/clubs/{doc.id}")
                     channel = await interaction.client.fetch_channel(data["channel"])
                     overwrites = {
+                        **channel.overwrites,
                         member: utils.discord.PermissionOverwrite(view_channel=False),
                     }
                     
@@ -403,7 +406,6 @@ class Clubs(utils.commands.Cog):
     @check_is_admin()
     async def approval(self, interaction: utils.discord.Interaction, club: str):
         ctx = Ctx.from_interaction(interaction)
-        await interaction.response.defer()
         
         doc_ref = ctx.db.document(f"guilds/{interaction.guild_id}/clubs/wait_approval")
         doc = await doc_ref.get()
