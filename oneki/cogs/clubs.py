@@ -446,5 +446,5 @@ class Clubs(utils.commands.Cog):
     
 
 async def setup(bot):
-    await bot.add_cog(Clubs(bot), guild=962155129220530216)
+    await bot.add_cog(Clubs(bot), guild=utils.discord.Object(id={962155129220530216}))
     
