@@ -444,7 +444,7 @@ class Clubs(utils.commands.Cog):
         except StopAsyncIteration:
             await interaction.response.send_message("Al parecer no hay clubs por explorar D:", ephemeral=True)
     
-
+#setup
 async def setup(bot):
     await bot.add_cog(Clubs(bot), guild=utils.discord.Object(id=962155129220530216))
     
