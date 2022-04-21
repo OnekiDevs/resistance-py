@@ -30,7 +30,7 @@ class Questionnaire(ui.Modal, title="Questionnaire Club"):
         label="description", 
         placeholder="Una descripcion corta y concisa",
         style=utils.discord.TextStyle.paragraph, 
-        min_length=10, max_length=60
+        min_length=15, max_length=120
     )
 
     async def on_submit(self, interaction: utils.discord.Interaction):
@@ -399,8 +399,8 @@ class Clubs(utils.commands.Cog):
         await interaction.response.send_modal(Questionnaire())
         
     @utils.app_commands.command()
-    @check_is_admin()
     @utils.app_commands.autocomplete(club=clubs_autocomplete)
+    @check_is_admin()
     async def approval(self, interaction: utils.discord.Interaction, club: str):
         ctx = Ctx.from_interaction(interaction)
         await interaction.response.defer()
@@ -413,8 +413,6 @@ class Clubs(utils.commands.Cog):
             if club_data is not None:
                 await doc_ref.delete(club)
                 
-                await interaction.response.send_message("Club aprobado con exito!")
-                
                 guild = await interaction.client.fetch_guild(interaction.guild_id)
                 category = await guild.fetch_channel(doc_data["clubs_category"])
                 owner = await guild.fetch_member(club_data["owner"])
@@ -424,6 +422,8 @@ class Clubs(utils.commands.Cog):
                 
                 doc_ref = ctx.db.document(f"guilds/{interaction.guild_id}/clubs/{club}")
                 await doc_ref.set(club_data)
+                
+                await interaction.response.send_message("Club aprobado con exito!")
                 return
             else:
                 return await interaction.response.send_message("No puedo aprobar algo que no existe :(")
@@ -444,7 +444,7 @@ class Clubs(utils.commands.Cog):
         except StopAsyncIteration:
             await interaction.response.send_message("Al parecer no hay clubs por explorar D:", ephemeral=True)
     
-#setup
-async def setup(bot):
-    await bot.add_cog(Clubs(bot), guild=utils.discord.Object(id=962155129220530216))
+
+async def setup(bot: utils.commands.Bot):
+    await bot.add_cog(Clubs(bot))
     
