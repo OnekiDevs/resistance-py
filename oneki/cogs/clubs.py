@@ -204,6 +204,23 @@ async def your_clubs_autocomplete(
 class ClubSettings(utils.app_commands.Group, name="club_settings"):
     """Manage settings of a club"""
 
+    async def check_is_owner(self, interaction: utils.discord.Interaction, club: str):
+        ctx = Ctx.from_interaction(interaction)
+        
+        doc_ref = ctx.db.document(f"guilds/{interaction.guild_id}/clubs/{club}")
+        doc = await doc_ref.get()
+        
+        if doc.exists:
+            data = doc.to_dict()
+            if data["owner"] == str(interaction.user.id):   
+                return (ctx, doc_ref, doc)
+            
+            await interaction.response.send_message("No tienes permisos para hacer esto D:", ephemeral=True)
+            return
+            
+        await interaction.response.send_message("P-Pero, el club no existe :/", ephemeral=True)
+        return
+
     group = utils.app_commands.Group(name="mod", description="...")
         
     @utils.app_commands.command()
@@ -379,23 +396,6 @@ class Clubs(utils.commands.Cog):
         
         await channel.send("Su aventura comienza aqui!")
         return channel
-    
-    async def check_is_owner(self, interaction: utils.discord.Interaction, club: str):
-        ctx = Ctx.from_interaction(interaction)
-        
-        doc_ref = ctx.db.document(f"guilds/{interaction.guild_id}/clubs/{club}")
-        doc = await doc_ref.get()
-        
-        if doc.exists:
-            data = doc.to_dict()
-            if data["owner"] == str(interaction.user.id):   
-                return (ctx, doc_ref, doc)
-            
-            await interaction.response.send_message("No tienes permisos para hacer esto D:", ephemeral=True)
-            return
-            
-        await interaction.response.send_message("P-Pero, el club no existe :/", ephemeral=True)
-        return
     
     @utils.app_commands.command()
     async def create_club(self, interaction: utils.discord.Interaction):
