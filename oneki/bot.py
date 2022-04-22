@@ -11,7 +11,7 @@ Hola!, soy Oneki un bot multitareas y estare muy feliz en ayudarte en los que ne
 
 initial_extensions = (
     "cogs.user",
-    "cogs.clubs"
+    # "cogs.clubs"
 )
 
 def _prefix_callable(bot, msg):
