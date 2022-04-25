@@ -11,7 +11,10 @@ Hola!, soy Oneki un bot multitareas y estare muy feliz en ayudarte en los que ne
 
 initial_extensions = (
     "cogs.user",
-    # "cogs.clubs"
+)
+
+private_extensions = (
+    "cogs.clubs",
 )
 
 def _prefix_callable(bot, msg):
@@ -21,7 +24,7 @@ def _prefix_callable(bot, msg):
         base.append('?')
         base.append('>')
     else:
-        base.extend(bot.prefixes.get(str(msg.guild.id), ['?', '>']))
+        base.extend(bot.get_raw_guild_prefixes(msg.guild.id))
     
     return base
 
@@ -113,6 +116,14 @@ class OnekiBot(utils.commands.AutoShardedBot):
             return True if object.id in self.blacklist['guilds'] else False
         return True if object.id in self.blacklist['users'] else False
 
+    async def load_extensions(self, extensions):
+        for ext in extensions:
+            try:
+                await self.load_extension(ext)
+            except Exception as e:
+                print(f'Failed to load extension {ext}.', file=sys.stderr)
+                traceback.print_exc()
+
     async def setup_hook(self) -> None:
         self.session = aiohttp.ClientSession(loop=self.loop)
         
@@ -125,12 +136,11 @@ class OnekiBot(utils.commands.AutoShardedBot):
         self.blacklist = await self._get_blacklist()
         
         # cogs unload
-        for ext in initial_extensions:
-            try:
-                await self.load_extension(ext)
-            except Exception as e:
-                print(f'Failed to load extension {ext}.', file=sys.stderr)
-                traceback.print_exc()
+        await self.load_extensions(initial_extensions)
+          
+        if env.PRIVATE_EXTENSIONS:
+            print("[*] Private extensions unload")
+            await self.load_extensions(private_extensions)
                 
     async def on_ready(self):
         await self.tree.sync()
