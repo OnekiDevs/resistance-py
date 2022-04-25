@@ -137,7 +137,7 @@ class OnekiBot(utils.commands.AutoShardedBot):
         
         # cogs unload
         await self.load_extensions(initial_extensions)
-          
+        
         if env.PRIVATE_EXTENSIONS:
             print("[*] Private extensions unload")
             await self.load_extensions(private_extensions)
