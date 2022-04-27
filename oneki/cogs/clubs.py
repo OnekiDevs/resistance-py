@@ -128,7 +128,7 @@ class Explorer(ui.View):
             await doc_ref.update({"users": interaction.client.db.ArrayUnion([str(interaction.user.id)])})
             
             await interaction.response.send_message(f"Te has unido a {data['name']}", ephemeral=True)
-            await channel.send(f"¡**{interaction.user}** se a unido al club!")
+            await channel.send(f"¡**{interaction.user}** se ha unido al club!")
         
         await channel.edit(overwrites=overwrites)
         
