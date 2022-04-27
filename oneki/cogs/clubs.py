@@ -128,7 +128,7 @@ class Explorer(ui.View):
             await doc_ref.update({"users": interaction.client.db.ArrayUnion([str(interaction.user.id)])})
             
             await interaction.response.send_message(f"Te has unido a {data['name']}", ephemeral=True)
-            await channel.send(f"{interaction.user}, se a unido al club!")
+            await channel.send(f"¡**{interaction.user}** se a unido al club!")
         
         await channel.edit(overwrites=overwrites)
         
@@ -425,11 +425,10 @@ class Clubs(utils.commands.Cog):
                 doc_ref = ctx.db.document(f"guilds/{interaction.guild_id}/clubs/{club}")
                 await doc_ref.set(club_data)
                 
-                await interaction.response.send_message("Club aprobado con exito!")
-                return
-            else:
-                return await interaction.response.send_message("No puedo aprobar algo que no existe :(")
-        
+                return await interaction.response.send_message("Club aprobado con exito!")
+
+            return await interaction.response.send_message("No puedo aprobar algo que no existe :(")
+                
         await interaction.response.send_message("No hay clubs por aprobar")
     
     @utils.app_commands.command()
