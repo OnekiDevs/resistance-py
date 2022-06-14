@@ -10,39 +10,47 @@ DEFAULT_LANGUAGE = "en"
 
 class TypeTranslation(Enum):
     command = "c"
-    interaction = "i"
+    view = "v"
     event = "e"
     func = "f"
 
 
 class Translations:
     def __init__(self, path: Union[str, os.PathLike] = None):
+        self._path = path or os.path.join("resource/lang")
         # lang: dict(translation)
-        self._translations = self.load_translations(path or os.path.join("resource/lang"))
+        self._translations = self.load(self._path)
 
     @staticmethod
-    def load_translations(path: str):
+    def load(path: str) -> dict:
         translations = {}
         for lang in os.listdir(path):
             lang_translation = {}
-            for cog in os.listdir(path + f"/{lang}/cogs"):
-                with open(path + f"/{lang}/cogs/{cog}", "r") as f:
-                    file_content = f.read()
-                    for key, value in json.loads(file_content).items():
-                        lang_translation[key] = value
-
-            with open(path + f"/{lang}/events.json", "r") as f: 
-                file_content = f.read()
-                for key, value in json.loads(file_content).items():
-                    lang_translation[key] = value
+            for dir in os.listdir(path + f"/{lang}"):
+                try:
+                    with open(path + f"/{lang}/{dir}", "r") as f:
+                        content = f.read()
+                        for k, v in json.loads(content).items():
+                            lang_translation[k] = v
+                except:
+                    for name in os.listdir(path + f"/{lang}/{dir}"):
+                        with open(path + f"/{lang}/{dir}/{name}", "r") as f:
+                            content = f.read()
+                            for k, v in json.loads(content).items():
+                                lang_translation[k] = v
 
             translations[lang] = lang_translation
         
         return translations
 
+    def reload(self) -> dict:
+        self._translations = self.load(self._path)
+        return self._translations
+
     def _get_translations(self, lang, *, type, name):
         """
         Command = TypeTranslation.command;
+        View = TypeTranslation.view
         Event = TypeTranslation.event;
         Function = TypeTranslation.func
         """ 
@@ -56,8 +64,8 @@ class Translations:
         command_translations = self._get_translations(lang, type=TypeTranslation.command, name=command_name)
         return command_translations
         
-    def interaction(self, lang, interaction_name):
-        command_translations = self._get_translations(lang, type=TypeTranslation.interaction, name=interaction_name)
+    def view(self, lang, interaction_name):
+        command_translations = self._get_translations(lang, type=TypeTranslation.view, name=interaction_name)
         return command_translations
     
     def event(self, lang, event_name):
