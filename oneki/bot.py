@@ -4,6 +4,7 @@ import sys
 
 import utils
 from utils import translations, context, db, env
+from typing import Union
 
 description = """
 Hola!, soy Oneki un bot multitareas y estare muy feliz en ayudarte en los que necesites :D
@@ -172,8 +173,13 @@ class OnekiBot(utils.commands.AutoShardedBot):
             
             await channel.send(f"**Context:**\n```py\n{msg}\n```", embed=embed)
 
-    async def get_context(self, message, *, cls=context.Context):
-        return await super().get_context(message, cls=cls)
+    async def get_context(
+        self, 
+        origin: Union[utils.discord.Message, utils.discord.Interaction], 
+        *, 
+        cls=context.Context
+    ):
+        return await super().get_context(origin, cls=cls)
 
     async def process_commands(self, message):
         ctx = await self.get_context(message)
