@@ -55,6 +55,7 @@ class Translations:
         Function = TypeTranslation.func
         """ 
         _name = type.value + "_" + name
+        lang = lang.split("-")[0]
         
         default_translation = self._translations[DEFAULT_LANGUAGE][_name]
         translation = self._translations[lang].get(_name, default_translation)
