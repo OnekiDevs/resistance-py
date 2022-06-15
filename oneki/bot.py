@@ -15,7 +15,7 @@ initial_extensions = (
 )
 
 private_extensions = (
-    "cogs.clubs",
+    # "cogs.clubs",
 )
 
 def _prefix_callable(bot, msg):
@@ -166,12 +166,11 @@ class OnekiBot(utils.commands.AutoShardedBot):
 
             # Send message
             channel = self.get_channel(885674115615301651)
-            await ctx.send(error)
-            
             print('Ignoring exception in command {}:'.format(ctx.command))
             traceback.print_exception(type(error), error, error.__traceback__)
             
             await channel.send(f"**Context:**\n```py\n{msg}\n```", embed=embed)
+            await ctx.send(error)
 
     async def get_context(
         self, 
