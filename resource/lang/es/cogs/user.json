@@ -28,13 +28,11 @@
         },
         "no_longer_afk": "{} ya no esta afk"
     },
-    "c_profile": {
+    "v_profile": {
         "embed": {
             "author":"Perfil del usuario {}",
             "footer":"Solicitado por {}"
-        }
-    },
-    "i_profile": {
+        },
         "avatar": {
             "embed": {
                 "author": "Avatar de {}",
@@ -47,8 +45,7 @@
                 "footer": "Solicitado por {}"
             }
         },
-        "info": {
-            "no_roles": "Ninguno",
+        "information": {
             "embed" : {
                 "title" : "Roles",
                 "fields": ["Actividad:", "Cuenta creada:", "Se unio al servidor:", "Color:", "ID:", "Estado:"],
