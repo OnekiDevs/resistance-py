@@ -51,7 +51,6 @@ class OnekiBot(utils.commands.AutoShardedBot):
         )
         
         self.db = db.async_client()
-        self.translations = translations.Translations()
 
     async def _get_guild_settings(self):
         # guild_id: list
@@ -135,6 +134,8 @@ class OnekiBot(utils.commands.AutoShardedBot):
         # user_id mapped to True
         # these are users globally blacklisted
         self.blacklist = await self._get_blacklist()
+            
+        self.translations = translations.Translations.load()
         
         # cogs unload
         await self.load_extensions(initial_extensions)
