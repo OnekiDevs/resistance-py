@@ -35,16 +35,17 @@ class View(ui.View):
         
     async def process_data(self):
         data = await self.get_data(**self.kwargs)
-        await self.update_components(data)
     
         content = await self.get_content(data)
         self.embed = await self.get_embed(data)
+        await self.update_components(data)
+        
         kwargs = {"content": content, "embed": self.embed, "view": self}
         
         return kwargs
         
     async def start(self, interaction: Optional[discord.Interaction] = None, *, ephemeral = False):
-        self.translations: Translation = interaction.client.translations.view(interaction.locale.value, self.NAME) if interaction is not None else self.ctx.cog.translations.view(self.ctx.lang, self.NAME)
+        self.translations: Translation = interaction.client.translations.view(interaction.locale.value.split("-")[0], self.NAME) if interaction is not None else self.ctx.cog.translations.view(self.ctx.lang, self.NAME)
         
         kwargs = await self.process_data()
         kwargs["ephemeral"] = ephemeral
