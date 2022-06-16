@@ -7,6 +7,7 @@ import functools
 def component(deco):
     def decorator(func):
         @deco
+        @functools.wraps(func)
         async def callback_wrapper(self, interaction: discord.Interaction, component: Union[ui.Button, ui.Select]):
             translation = getattr(self.translations, func.__name__)
             await func(self, interaction, component, translation)
