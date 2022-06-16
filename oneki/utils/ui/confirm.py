@@ -1,10 +1,9 @@
 import discord
-from view import View
-import decorators 
+from . import View, decorators
 from typing import Coroutine, Any, Optional
 
 
-class View(View):
+class Confirm(View):
     """
     example:
         async def confirmed(translation):
