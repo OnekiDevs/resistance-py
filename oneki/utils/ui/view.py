@@ -5,6 +5,10 @@ from ..translations import Translations, Translation
 from typing import Optional, Union
 
 
+def _can_be_disabled(item):
+    return hasattr(item, "disabled")
+
+
 class View(ui.View):
     NAME: str
     TIMEOUT = 320
@@ -66,7 +70,8 @@ class View(ui.View):
             
     def _disable_children(self):
         for item in self.children:
-            item.disabled = True
+            if _can_be_disabled(item):
+                item.disabled = True
         
     async def disable(self, **kwargs):
         if self._disabled:
@@ -81,6 +86,7 @@ class View(ui.View):
         
     async def on_timeout(self) -> None:
         await self.disable()
+        
         
 class _StopButton(discord.ui.Button):
     async def callback(self, interaction):
