@@ -1,6 +1,7 @@
 import discord
 from discord import ui 
 from ..context import Context
+from ..translations import Translations, Translation
 from typing import Optional, Union
 
 
@@ -15,7 +16,7 @@ class View(ui.View):
         self.msg: Optional[discord.Message] = None
         self.embed: Optional[discord.Embed] = None
         
-        self.translations = {}
+        self.translations: Optional[Translations] = None
         
         self.kwargs = kwargs
         self._disabled = False
@@ -43,7 +44,7 @@ class View(ui.View):
         return kwargs
         
     async def start(self, interaction: Optional[discord.Interaction] = None, *, ephemeral = False):
-        self.translations = interaction.client.translations.view(interaction.locale.value, self.NAME) if interaction is not None else self.ctx.bot.translations.view(self.ctx.lang, self.NAME)
+        self.translations: Translation = interaction.client.translations.view(interaction.locale.value, self.NAME) if interaction is not None else self.ctx.cog.translations.view(self.ctx.lang, self.NAME)
         
         kwargs = await self.process_data()
         kwargs["ephemeral"] = ephemeral
