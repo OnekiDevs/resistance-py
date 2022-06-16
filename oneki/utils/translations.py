@@ -1,8 +1,8 @@
-from typing import Union
 import os
 import json
 
 from enum import Enum
+from typing import Union, Optional
 
 
 DEFAULT_LANGUAGE = "en"
@@ -13,40 +13,35 @@ class TypeTranslation(Enum):
     view = "v"
     event = "e"
     func = "f"
-
+    
+    
+class Translation:
+    def __init__(self, translation: dict) -> None:
+        for k, v in translation.items():
+            if isinstance(v, dict):
+                v = Translation(v)
+                
+            setattr(self, k, v)
+            
 
 class Translations:
-    def __init__(self, path: Union[str, os.PathLike] = None):
-        self._path = path or os.path.join("resource/lang")
-        # lang: dict(translation)
-        self._translations = self.load(self._path)
-
-    @staticmethod
-    def load(path: str) -> dict:
+    def __init__(self, translations) -> None:
+        self._translations = translations
+    
+    @classmethod
+    def load(cls, path: Optional[Union[str, os.PathLike]] = os.path.join("resource/lang")):
         translations = {}
         for lang in os.listdir(path):
-            lang_translation = {}
-            for dir in os.listdir(path + f"/{lang}"):
-                try:
-                    with open(path + f"/{lang}/{dir}", "r") as f:
-                        content = f.read()
-                        for k, v in json.loads(content).items():
-                            lang_translation[k] = v
-                except:
-                    for name in os.listdir(path + f"/{lang}/{dir}"):
-                        with open(path + f"/{lang}/{dir}/{name}", "r") as f:
-                            content = f.read()
-                            for k, v in json.loads(content).items():
-                                lang_translation[k] = v
+            lang_translations = {}
+            for cog in os.listdir(f"{path}/{lang}"):
+                with open(f"{path}/{lang}/{cog}", "r") as f:
+                    for name, translation in json.loads(f.read()).items():
+                        lang_translations[name] = Translation(translation)
 
-            translations[lang] = lang_translation
+            translations[lang] = lang_translations
         
-        return translations
-
-    def reload(self) -> dict:
-        self._translations = self.load(self._path)
-        return self._translations
-
+        return cls(translations)
+            
     def _get_translations(self, lang, *, type, name):
         """
         Command = TypeTranslation.command;
@@ -55,7 +50,6 @@ class Translations:
         Function = TypeTranslation.func
         """ 
         _name = type.value + "_" + name
-        lang = lang.split("-")[0]
         
         default_translation = self._translations[DEFAULT_LANGUAGE][_name]
         translation = self._translations[lang].get(_name, default_translation)
@@ -76,10 +70,3 @@ class Translations:
     def function(self, lang, function_name):
         function_translations = self._get_translations(lang, type=TypeTranslation.func, name=function_name)
         return function_translations
-
-
-if __name__ == "__main__":
-    translations = Translations(os.path.join("resource/lang"))
-    translation = translations.command('es', 'avatar')
-    
-    print(translation)
