@@ -15,7 +15,8 @@ initial_extensions = (
 )
 
 private_extensions = (
-    "cogs.clubs",
+    # "cogs.clubs",
+    "cogs.makeover_event",
 )
 
 def _prefix_callable(bot, msg):
