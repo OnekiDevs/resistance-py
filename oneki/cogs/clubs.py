@@ -1,9 +1,7 @@
 import uuid
 import utils
 from utils import ui, db
-from typing import AsyncGenerator
-from utils.context import Context
-# from utils.views import confirm
+from utils.ui import confirm
 
 
 class IsNsfw(ui.View):
@@ -19,8 +17,7 @@ class IsNsfw(ui.View):
     async def yes(self, interaction: utils.discord.Interaction, button: utils.discord.ui.Button):
         self.value = True
         return {
-            "content": f"Gracias por tu solicitud, {interaction.user.name}!\nEspere la aprobación de los admins/mods ;)",
-            "ephemeral": True
+            "content": f"Gracias por tu solicitud, {interaction.user.name}!\nEspere la aprobación de los admins/mods ;)"
         }
         
     @ui.button(label="No", style=utils.discord.ButtonStyle.blurple)
@@ -28,13 +25,12 @@ class IsNsfw(ui.View):
     async def no(self, interaction: utils.discord.Interaction, button: utils.discord.ui.Button):
         return {
             "content": f"Gracias por tu solicitud, {interaction.user.name}!\nEspere la aprobación de los admins/mods ;)", 
-            "ephemeral": True
         }
 
 
-class Questionnaire(utils.discord.ui.Modal, title="Questionnaire Club"):
-    name = utils.discord.ui.TextInput(label="Nombre", placeholder="Nombre del club", min_length=4, max_length=32)
-    description = utils.discord.ui.TextInput(
+class Questionnaire(ui.Modal, title="Questionnaire Club"):
+    name = ui.TextInput(label="Nombre", placeholder="Nombre del club", min_length=4, max_length=32)
+    description = ui.TextInput(
         label="description", 
         placeholder="Una descripcion corta y concisa",
         style=utils.discord.TextStyle.paragraph, 
@@ -299,13 +295,22 @@ class ClubSettings(utils.app_commands.Group, name="club_settings"):
         
             url = banner.url.split("?")[0] + "?width=750&height=240"
             
-            embed = utils.discord.Embed(title=data["name"], description=data["description"])
-            embed.add_field(name="Owner", value=f"```{interaction.user}```").add_field(name="Is Nsfw:", value="```"+ {True: "Si", False: "No"}[data['nsfw']] + "```")
-            embed.set_image(url=url)
+            async def get_content(_):
+                return "Seguro que quieres establecer este banner?"
             
-            view = None
-            await interaction.response.send_message("Seguro que quieres establecer este banner?", embed=embed, view=view, ephemeral=True)
+            async def get_embed(_):
+                embed = utils.discord.Embed(title=data["name"], description=data["description"])
+                embed.add_field(name="Owner", value=f"```{interaction.user}```")
+                embed.add_field(name="Is Nsfw:", value="```"+ {True: "Si", False: "No"}[data['nsfw']] + "```")
+                embed.set_image(url=url)
+                return embed
             
+            view = confirm.Confirm()
+            view.get_content = get_content
+            view.get_embed = get_embed
+            
+            view.start(interaction, ephemeral=True)
+                        
             await view.wait()    
             if view.value:
                 await doc_ref.update({"banner": url})
