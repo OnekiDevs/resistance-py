@@ -16,11 +16,14 @@ class Context(commands.Context):
 
     @property
     def lang(self):
-        return self.bot.get_guild_lang(str(self.guild.id))
+        if self.interaction is not None:
+            return self.interaction.locale.value.split("-")[0]
+        
+        return self.guild.preferred_locale.value.split("-")[0]
 
     @property
     def translation(self) -> dict:
-        return self.bot.translations.command(self.lang, self.command.name)
+        return self.cog.translations.command(self.lang, self.command.name)
 
     @property
     def debug_channel(self) -> discord.TextChannel:
