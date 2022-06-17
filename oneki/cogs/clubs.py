@@ -1,7 +1,11 @@
-import uuid
 import utils
 from utils import ui, db
 from utils.ui import confirm
+
+import io
+import json
+import yaml
+import uuid
 
 
 class Club:
@@ -32,7 +36,7 @@ class Club:
         club.owner_id = int(data["owner"])
         club.is_public = data["public"]
         club.is_nsfw = data["nsfw"]
-        club._banner = data["banner"]
+        club._banner = data.get("banner")
 
         for mid in data["members"]:
             member = await club._fetch_member(int(mid))
@@ -113,7 +117,8 @@ class Club:
             "owner": str(self.owner_id),
             "name": self.name,
             "description": self.description,
-            "public": self.is_public
+            "public": self.is_public,
+            "nsfw": self.is_nsfw
         }
         
         if self.channel_id is not None:
@@ -122,13 +127,25 @@ class Club:
         if utils.is_empty(self.members):
             payload["members"] = [str(self.owner_id)]
         else:
-            payload["members"] = self.members
-        
+            members = []
+            for mid in self.members.keys():
+                members.append(str(mid))
+                
+            payload["members"] = members
+
         if not utils.is_empty(self.bans):
-            payload["bans"] = self.bans
+            bans = []
+            for mid in self.bans.keys():
+                bans.append(str(mid))
+                
+            payload["bans"] = bans
             
         if not utils.is_empty(self.mutes):
-            payload["mutes"] = self.mutes
+            mutes = []
+            for mid in self.mutes.keys():
+                bans.append(str(mid))
+                
+            payload["mutes"] = mutes
             
         return payload
         
@@ -204,14 +221,6 @@ class Explorer(ui.View):
         self.generator = None
         self.clubs: list[list[Club, db.AsyncDocumentReference]] = []
         self.num = 0
-        
-    def create_embed(self, owner, data):
-        embed = utils.discord.Embed(title=data["name"], description=data["description"])
-        embed.add_field(name="Owner:", value=f"```{owner}```", inline=False).add_field(name="Users:", value=f"```{len(data['users'])}```")
-        embed.add_field(name="Is Nsfw:", value="```"+ {True: "Si", False: "No"}[data['nsfw']] + "```")
-        embed.set_image(url=data.get("banner"))
-        
-        return embed
         
     async def generate_new_club(self, guild: utils.discord.Guild, member: utils.discord.Member): 
         while True:
@@ -432,6 +441,50 @@ class ClubSettings(utils.app_commands.Group, name="club_settings"):
             if view.value:
                 await doc_ref.update({"banner": url})
                 
+    @utils.app_commands.command()
+    @utils.app_commands.autocomplete(club=your_clubs_autocomplete)
+    async def export(self, interaction: utils.discord.Interaction, club: str):
+        data = await self.check_is_owner(interaction, club)
+        if data is not None:
+            _club, _ = data
+            
+            _club.channel_id = None
+            _club.mods = []
+            _club.bans = []
+            _club.mutes = []
+            
+            data = _club.to_dict()
+            del data["owner"]
+            del data["members"]
+            
+            file = utils.discord.File(
+                fp=io.StringIO(json.dumps(data, indent=4)),
+                filename="club_settings.json",
+                description=f"Las configuraciones de: {_club.name}"
+            )
+            await interaction.response.send_message(file=file, ephemeral=True)
+            
+    @utils.app_commands.command(name="import")
+    @utils.app_commands.autocomplete(club=your_clubs_autocomplete)
+    @utils.app_commands.rename(file="json")
+    async def _import(self, interaction: utils.discord.Interaction, club: str, file: utils.discord.Attachment):
+        data = await self.check_is_owner(interaction, club)
+        if data is not None:
+            _club, doc_ref = data
+            
+            data = _club.to_dict()
+            if file.content_type.startswith("application/json"):
+                j = json.loads(await file.read())
+                data.update(j)
+            elif file.filename.endswith((".yml", ".yaml")):
+                y = yaml.safe_load(await file.read())
+                data.update(y)
+            else:
+                return await interaction.response.send_message("Solo se admiten archivo con extension .json, .yml o .yaml", ephemeral=True)
+                
+            await doc_ref.update(data)
+            await interaction.response.send_message("Configuraciones cargadas correctamente", ephemeral=True)
+                        
     @group.command(name="add")
     @utils.app_commands.autocomplete(club=your_clubs_autocomplete)
     async def add_mod(self, interaction: utils.discord.Interaction, club: str, member: utils.discord.Member):
