@@ -280,7 +280,7 @@ class Explorer(ui.View):
         if self.num != 0:
             self.num -= 1
         
-        await self.update_components((None, None, interaction.user.id))
+        await self.update_components((None, None, interaction.user))
         await interaction.response.edit_message(embed=self.clubs[self.num][0], view=self)
     
     @ui.button(label="Join/Exit", style=utils.discord.ButtonStyle.red)
@@ -318,7 +318,7 @@ class Explorer(ui.View):
                 self.join_or_exit.disabled = True
                 return await interaction.response.edit_message(content="Ya no hay mas clubs por explorar :(", embed=None, view=self)
                 
-        await self.update_components((None, None, interaction.user.id))
+        await self.update_components((None, None, interaction.user))
         await interaction.response.edit_message(embed=embed, view=self)
             
                   
