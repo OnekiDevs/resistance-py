@@ -312,7 +312,8 @@ class Explorer(ui.View):
             embed = club.get_embed()
         except IndexError:
             try:
-                embed = await self.generate_new_club(interaction)
+                club = await self.generate_new_club(interaction.guild, interaction.user)
+                embed = club.get_embed()
             except StopAsyncIteration:
                 button.disabled = True
                 self.join_or_exit.disabled = True
