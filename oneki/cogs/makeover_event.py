@@ -3,7 +3,7 @@ from utils import ui
 
 
 class SuggestName(utils.discord.ui.Modal, title="Sugiere el nuevo nombre del servidor"):
-    CHANNEL = 885674115946643456
+    CHANNEL = 987158694427000882
     
     name = utils.discord.ui.TextInput(label="Nombre", placeholder="Nuevo nombre del servidor", min_length=4, max_length=32)
     reason = utils.discord.ui.TextInput(
@@ -26,7 +26,8 @@ class SuggestName(utils.discord.ui.Modal, title="Sugiere el nuevo nombre del ser
         embed = utils.discord.Embed(title=interaction.user)
         embed.add_field(name="Nombre sugerido", value=f"```{self.name.value}```")
         embed.add_field(name="Razon", value=f"```{self.reason.value}```")
-        embed.add_field(name="Tematica sugerida", value=f"```{self.theme.value}```", inline=False)
+        if self.theme.value is not None:
+            embed.add_field(name="Tematica sugerida", value=f"```{self.theme.value}```", inline=False)
         
         await interaction.response.send_message("¡Gracias por participar!", ephemeral=True)
         await channel.send(embed=embed)
