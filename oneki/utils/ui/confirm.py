@@ -6,14 +6,13 @@ from typing import Coroutine, Any, Optional
 class Confirm(View):
     """
     example:
-        async def confirmed(translation):
+        async def confirmed(interaction):
             ...
         
-        async def cancelled(translation):
+        async def cancelled(interaction):
             ...
         
         view = confirm.View(confirmed=confirmed, cancelled=cancelled)
-        view.NAME = ""
         view.start()
     """
     def __init__(self, context = None, *, confirmed: Optional[Coroutine[Any, Any, dict]] = None, cancelled: Optional[Coroutine[Any, Any, dict]] = None):
@@ -25,22 +24,22 @@ class Confirm(View):
 
     @decorators.button(label="Confirm", style=discord.ButtonStyle.red)
     @decorators.disable_when_pressed
-    async def confirm(self, interaction: discord.Interaction, button: discord.ui.Button, translation):
+    async def confirm(self, interaction: discord.Interaction, button: discord.ui.Button, _):
         await interaction.response.send_message("Confirming", ephemeral=True)
         self.value = True
         
         if self.confirmed is not None:
-            return await self.confirmed(translation)
+            await self.confirmed(interaction)
         
         return {}
 
     @decorators.button(label="Cancel", style=discord.ButtonStyle.grey)
     @decorators.disable_when_pressed
-    async def cancel(self, interaction: discord.Interaction, button: discord.ui.Button, translation):
+    async def cancel(self, interaction: discord.Interaction, button: discord.ui.Button, _):
         await interaction.response.send_message("Cancelling", ephemeral=True)
         self.value = False
         
         if self.cancelled is not None:
-            return await self.cancelled(translation)
+            await self.cancelled(interaction)
         
         return {}

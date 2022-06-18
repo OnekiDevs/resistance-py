@@ -9,7 +9,11 @@ def component(deco):
         @deco
         @functools.wraps(func)
         async def callback_wrapper(self, interaction: discord.Interaction, component: Union[ui.Button, ui.Select]):
-            translation = getattr(self.translations, func.__name__)
+            if self.name is not None:
+                translation = getattr(self.translations, func.__name__)
+            else:
+                translation = None
+                
             await func(self, interaction, component, translation)
         
         return callback_wrapper

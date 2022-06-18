@@ -10,8 +10,8 @@ def _can_be_disabled(item):
 
 
 class View(ui.View):
-    NAME: str
     TIMEOUT = 320
+    name: Optional[str] = None
     
     def __init__(self, context: Optional[Context] = None, *, timeout: Optional[float] = TIMEOUT, **kwargs):
         super().__init__(timeout=timeout)
@@ -49,7 +49,8 @@ class View(ui.View):
         return kwargs
         
     async def start(self, interaction: Optional[discord.Interaction] = None, *, ephemeral = False):
-        self.translations: Translation = interaction.client.translations.view(interaction.locale.value.split("-")[0], self.NAME) if interaction is not None else self.ctx.cog.translations.view(self.ctx.lang, self.NAME)
+        if self.name is not None:
+            self.translations: Translation = interaction.client.translations.view(interaction.locale.value.split("-")[0], self.NAME) if interaction is not None else self.ctx.cog.translations.view(self.ctx.lang, self.NAME)
         
         kwargs = await self.process_data()
         kwargs["ephemeral"] = ephemeral
