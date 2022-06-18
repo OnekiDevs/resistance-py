@@ -2,6 +2,7 @@ import aiohttp
 import discord
 import datetime
 from discord.ext import commands
+from utils.translations import Translation
 from utils.db import AsyncClient
     
 
@@ -22,7 +23,7 @@ class Context(commands.Context):
         return self.guild.preferred_locale.value.split("-")[0]
 
     @property
-    def translation(self) -> dict:
+    def translation(self) -> Translation:
         return self.cog.translations.command(self.lang, self.command.name)
 
     @property
