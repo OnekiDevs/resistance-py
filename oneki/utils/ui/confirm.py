@@ -22,6 +22,10 @@ class Confirm(View):
         self.confirmed = confirmed
         self.cancelled = cancelled
 
+    async def start(self, interaction: Optional[discord.Interaction] = None, *, ephemeral=False):
+        await super().start(interaction, ephemeral=ephemeral)
+        return await self.wait()
+
     @decorators.button(label="Confirm", style=discord.ButtonStyle.red)
     @decorators.disable_when_pressed
     async def confirm(self, interaction: discord.Interaction, button: discord.ui.Button, _):
