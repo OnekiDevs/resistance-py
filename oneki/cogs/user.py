@@ -192,7 +192,7 @@ class User(utils.Cog):
                 
         await ctx.send(embed=embed)
     
-    @utils.commands.Cog.listener()
+    @utils.Cog.listener()
     async def on_message(self, message: utils.discord.Message):
         # if the user is afk
         if str(message.author.id) in self.afks:
@@ -201,7 +201,7 @@ class User(utils.Cog):
                 return 
             
             member = message.author
-            translation = self.bot.translations.event(self.bot.get_guild_lang(message.guild.id), "afk")
+            translation = self.bot.translations.event(self.bot.get_guild_lang(message.guild), "afk")
 
             await self.remove_from_afk(member.id)
             try:
@@ -213,7 +213,7 @@ class User(utils.Cog):
 
         # is there a mention of an afk user?
         if message.mentions:
-            translation = self.bot.translations.event(self.bot.get_guild_lang(message.guild.id), "afk")
+            translation = self.bot.translations.event(self.bot.get_guild_lang(message.guild), "afk")
             for user in message.mentions:
                 if str(user.id) in self.afks:
                     data = self.afks[str(user.id)]

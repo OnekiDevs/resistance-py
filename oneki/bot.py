@@ -56,21 +56,16 @@ class OnekiBot(utils.commands.AutoShardedBot):
     async def _get_guild_settings(self):
         # guild_id: list
         prefixes = {}
-        # guild_id: str(lang)
-        languages = {}
         
         collection_ref = self.db.collection("guilds")
         async for doc_ref in collection_ref.list_documents():
             doc = await doc_ref.get()
             if doc.exists: 
-                doc_content = doc.to_dict()
-                if doc_content.get("prefixes") is not None:
-                    prefixes[doc.id] = doc_content.get("prefixes")
-                
-                if doc_content.get("lang") is not None:
-                    languages[doc.id] = doc_content.get("lang")
+                data = doc.to_dict()
+                if data.get("prefixes") is not None:
+                    prefixes[doc.id] = data.get("prefixes")
         
-        return prefixes, languages
+        return prefixes
 
     async def _get_blacklist(self):
         # {users: {id, ...}, guilds: {id, ...}}
@@ -94,8 +89,8 @@ class OnekiBot(utils.commands.AutoShardedBot):
     def get_raw_guild_prefixes(self, guild_id):
         return self.prefixes.get(str(guild_id), ['?', '>'])
 
-    def get_guild_lang(self, guild_id):
-        return self.languages.get(str(guild_id), translations.DEFAULT_LANGUAGE)
+    def get_guild_lang(self, guild):
+        return guild.preferred_locale.value.split("-")[0]
 
     async def add_to_blacklist(self, object, *, reason=None):
         doc_ref = self.db.document(f"blacklist/{'guilds' if isinstance(object, utils.discord.Guild) else 'users'}")
@@ -129,8 +124,7 @@ class OnekiBot(utils.commands.AutoShardedBot):
         self.session = aiohttp.ClientSession(loop=self.loop)
         
         # prefixes[guild_id]: list
-        # languages[guild_id]: str(lang)
-        self.prefixes, self.languages = await self._get_guild_settings()
+        self.prefixes = await self._get_guild_settings()
 
         # user_id mapped to True
         # these are users globally blacklisted
@@ -199,13 +193,13 @@ class OnekiBot(utils.commands.AutoShardedBot):
 
         # Si pingearon al bot
         if message.content in [f'<@!{self.user.id}>', f'<@{self.user.id}>']:
-            translation = self.translations.event(self.get_guild_lang(message.guild.id), "ping")
-            prefixes = self.get_raw_guild_prefixes(message.guild)
+            translation = self.translations.event(self.get_guild_lang(message.guild), "ping")
+            prefixes = self.get_raw_guild_prefixes(message.guild.id)
             if len(prefixes) == 1:
-                await message.channel.send(translation["one"].format(prefixes[0]))
+                await message.channel.send(translation.one.format(prefixes[0]))
             else:
                 p = ", ".join([prefix for prefix in prefixes])
-                await message.channel.send(translation["more"].format(p))
+                await message.channel.send(translation.more.format(p))
 
         await self.process_commands(message)
 
