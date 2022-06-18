@@ -426,10 +426,10 @@ class ClubSettings(utils.app_commands.Group, name="club_settings"):
         
             url = banner.url.split("?")[0] + "?width=750&height=240"
             
-            async def get_content(_):
+            async def get_content(self, _):
                 return "Seguro que quieres establecer este banner?"
             
-            async def get_embed(_):
+            async def get_embed(self, _):
                 return _club.get_embed()
             
             view = confirm.Confirm()
