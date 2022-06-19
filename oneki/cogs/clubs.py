@@ -230,7 +230,6 @@ class Explorer(ui.View):
             
             doc = await doc_ref.get()
             club = await Club.from_data(doc.to_dict(), guild=guild)
-            # data = doc.to_dict()
             if club.is_public: 
                 if member.id in club.bans:
                     continue
@@ -652,8 +651,8 @@ class Clubs(utils.commands.Cog):
     async def explorer(self, interaction: utils.discord.Interaction): 
         view = Explorer(
             client=interaction.client, 
-            guild_id=interaction.guild_id, 
-            user_id=interaction.user.id
+            guild=interaction.guild, 
+            member=interaction.user
         )
         await view.start(interaction, ephemeral=True)
     
