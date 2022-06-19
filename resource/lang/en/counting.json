@@ -1,0 +1,43 @@
+{
+    "c_set_channel": {
+        "success": "Configuration established successfully!"
+    },
+    "c_fail_role": {
+        "success": "Configuration established successfully!",
+        "no_settings": "A channel to count has not been established!"
+    },
+    "c_numbers_only": {
+        "success": "Configuration established successfully!",
+        "no_settings": "A channel to count has not been established!"
+    },
+    "c_disable_counting": {
+        "confirm": {
+            "label": "Stop there! Are you sure you want to perform this action?\nPlease note that all progress will be deleted.",
+            "ok": "Apparently infinity is smaller than I thought.",
+            "cancel": "Uff, for little and everything is erased",
+            "timeout": "Try to think about it before I fall asleep 😴"
+        }
+    },
+    "c_server_stats": {
+        "not_there_server_stats": "There are no statistics for the server",
+        "embed": {
+            "title": "Server stats",
+            "fields": [
+                "Record:",
+                "Broken record ago:",
+                "Last number counted:",
+                "Counted by:"
+            ]
+        }
+    },
+    "c_user_stats": {
+        "embed": {
+            "fields_names": [
+                "Global stats",
+                "Server stats"
+            ],
+            "field_value": "Correct rate: **{}%**\n`{}`\nIncorrect rate: **{}%**\n`{}`\n\nTotal numbers correct: **{}**\nTotal numbers incorrect: **{}**",
+            "footer": "Requested by {}"
+        }
+    }
+}

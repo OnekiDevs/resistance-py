@@ -1,0 +1,43 @@
+{
+    "c_set_channel": {
+        "success": "¡Configuracion establecida con exito!"
+    },
+    "c_fail_role": {
+        "success": "¡Configuracion establecida con exito!",
+        "no_settings": "¡No se a establecido un canal para contar!"
+    },
+    "c_numbers_only": {
+        "success": "¡Configuracion establecida con exito!",
+        "no_settings": "¡No se a establecido un canal para contar!"
+    },
+    "c_disable_counting": {
+        "confirm": {
+            "label": "¡Alto ahi!, ¿Estas seguro de que quieres realizar esta accion?\nTen en cuenta que todo el progreso sera eliminado",
+            "ok": "Al parecer el infinito es mas pequeño de lo que creia.",
+            "cancel": "Uff, por poco y todo se borra",
+            "timeout": "Intenta pensarlo antes de que me duerma 😴"
+        }
+    },
+    "c_server_stats": {
+        "not_there_server_stats": "No hay estadísticas para el servidor",
+        "embed": {
+            "title": "Estadisticas del servidor",
+            "fields": [
+                "Record:",
+                "Record roto hace:",
+                "Ultimo numero contado:",
+                "Contado por:"
+            ]
+        }
+    },
+    "c_user_stats": {
+        "embed": {
+            "fields_names": [
+                "Estadisticas globales",
+                "Estadisticas en el servidor"
+            ],
+            "field_value": "Porcentaje correctos: **{}%**\n`{}`\nPorcentaje incorrectos: **{}%**\n`{}`\n\nTotal de numeros correctos: **{}**\nTotal de numeros incorrectos: **{}**",
+            "footer": "Solicitado por {}"
+        }
+    }
+}
