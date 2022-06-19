@@ -35,8 +35,8 @@ def info_embed(ctx, member, translation):
         activity = member.activity if isinstance(member.activity, utils.discord.CustomActivity) else member.activity.name
         embed.add_field(name=translation.embed.fields[0], value=f"```{activity}```", inline=False)
     
-    embed.add_field(name=translation.embed.fields[1], value=f"```{member.created_at}```")
-    embed.add_field(name=translation.embed.fields[2], value=f"```{member.joined_at}```")
+    embed.add_field(name=translation.embed.fields[1], value=utils.discord.utils.format_dt(member.created_at, "F"))
+    embed.add_field(name=translation.embed.fields[2], value=utils.discord.utils.format_dt(member.joined_at, "F"))
     embed.add_field(name=translation.embed.fields[3], value=f"```{member.color}```")
     embed.add_field(name=translation.embed.fields[4], value=f"```{member.id}```")
     embed.add_field(name=translation.embed.fields[5], value=f"```{member.raw_status}```")
@@ -130,7 +130,7 @@ class User(utils.Cog):
     async def avatar(self, ctx: Context, member: Optional[utils.discord.Member] = None):
         member = member or ctx.author
         embed = avatar_embed(ctx, member, ctx.translation)
-        
+
         await ctx.send(embed=embed)
        
     @utils.commands.hybrid_command()
