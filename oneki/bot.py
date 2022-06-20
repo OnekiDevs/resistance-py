@@ -16,7 +16,7 @@ initial_extensions = (
 
 private_extensions = (
     # "cogs.clubs",
-    # "cogs.counting",
+    "cogs.counting",
     "cogs.makeover_event",
 )
 
