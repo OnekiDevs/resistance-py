@@ -50,6 +50,7 @@ class OnekiBot(utils.commands.AutoShardedBot):
             description=description,
             allowed_mentions=allowed_mentions,
             intents=intents,
+            case_insensitive=True
         )
         
         self.db = db.async_client()
