@@ -1,6 +1,7 @@
 import utils
 from utils import ui, db
 from utils.ui import confirm
+from typing import AsyncGenerator
 
 import io
 import json
@@ -218,7 +219,7 @@ class Explorer(ui.View):
     
     def __init__(self, context = None, **kwargs):
         super().__init__(context, **kwargs)
-        self.generator = None
+        self.generator: AsyncGenerator[db.AsyncDocumentReference] = None
         self.clubs: list[list[Club, db.AsyncDocumentReference]] = []
         self.num = 0
         
@@ -243,14 +244,12 @@ class Explorer(ui.View):
         
         return (client, guild, member)
 
-    async def get_content(self, _) -> str:
+    async def get_content(self, *args) -> str:
         return "Club Explorer"
 
-    async def get_embed(self, data) -> utils.discord.Embed:
-        _, guild, user = data
-        
+    async def get_embed(self, client, guild, member) -> utils.discord.Embed:        
         try:
-            club = await self.generate_new_club(guild, user)
+            club = await self.generate_new_club(guild, member)
             return club.get_embed()
         except StopAsyncIteration:
             embed = utils.discord.Embed(
@@ -261,8 +260,7 @@ class Explorer(ui.View):
             )
             return embed
 
-    async def update_components(self, data):
-        _, _, user = data
+    async def update_components(self, client, guild, member):
         club, _ = self.clubs[self.num]
         
         if self.num == 0:
@@ -271,7 +269,7 @@ class Explorer(ui.View):
         if (len(self.clubs) - 1) == self.num:
             self.next.disabled = False
         
-        if user.id in club.mutes:
+        if member.id in club.mutes:
             self.join_or_exit.disabled = True
 
     @ui.button(label="Back", emoji="⬅️", style=utils.discord.ButtonStyle.green)
@@ -279,7 +277,7 @@ class Explorer(ui.View):
         if self.num != 0:
             self.num -= 1
         
-        await self.update_components((None, None, interaction.user))
+        await self.update_components(None, None, interaction.user)
         await interaction.response.edit_message(embed=self.clubs[self.num][0], view=self)
     
     @ui.button(label="Join/Exit", style=utils.discord.ButtonStyle.red)
@@ -318,7 +316,7 @@ class Explorer(ui.View):
                 self.join_or_exit.disabled = True
                 return await interaction.response.edit_message(content="Ya no hay mas clubs por explorar :(", embed=None, view=self)
                 
-        await self.update_components((None, None, interaction.user))
+        await self.update_components(None, None, interaction.user)
         await interaction.response.edit_message(embed=embed, view=self)
             
                   
