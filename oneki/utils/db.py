@@ -44,6 +44,7 @@ class AsyncClient(firestore.firestore.AsyncClient):
         self.ArrayUnion = firestore.firestore.ArrayUnion
         self.ArrayRemove = firestore.firestore.ArrayRemove
         self.Increment = firestore.firestore.Increment
+        self.Query = firestore.firestore.AsyncQuery
     
     def document(self, *document_path: str) -> AsyncDocumentReference:
         return AsyncDocumentReference(
