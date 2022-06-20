@@ -26,23 +26,23 @@ class View(ui.View):
         self._disabled = False
         
     async def get_data(self, **kwargs): 
+        return (None,)
+        
+    async def get_content(self, *args) -> str:
         return None
         
-    async def get_content(self, data) -> str:
-        return None
-        
-    async def get_embed(self, data) -> discord.Embed:
+    async def get_embed(self, *args) -> discord.Embed:
         return None # this is optional to implement
         
-    async def update_components(self, data):
+    async def update_components(self, *args):
         pass # this implementation is also optional
         
     async def process_data(self):
         data = await self.get_data(**self.kwargs)
     
-        content = await self.get_content(data)
-        self.embed = await self.get_embed(data)
-        await self.update_components(data)
+        content = await self.get_content(*data)
+        self.embed = await self.get_embed(*data)
+        await self.update_components(*data)
         
         kwargs = {"content": content, "embed": self.embed, "view": self}
         
@@ -50,7 +50,7 @@ class View(ui.View):
         
     async def start(self, interaction: Optional[discord.Interaction] = None, *, ephemeral = False):
         if self.name is not None:
-            self.translations: Translation = interaction.client.translations.view(interaction.locale.value.split("-")[0], self.NAME) if interaction is not None else self.ctx.cog.translations.view(self.ctx.lang, self.NAME)
+            self.translations: Translation = interaction.client.translations.view(interaction.locale.value.split("-")[0], self.name) if interaction is not None else self.ctx.cog.translations.view(self.ctx.lang, self.name)
         
         kwargs = await self.process_data()
         kwargs["ephemeral"] = ephemeral
