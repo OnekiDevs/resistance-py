@@ -1,9 +1,124 @@
 import utils
+from utils import ui, db
 from utils.ui import confirm
 from utils.context import Context
+from typing import AsyncGenerator
 
 import math
 import cmath
+
+
+class GlobalStats(ui.View):
+    name = "global_stats"
+    
+    def __init__(self, context, **kwargs):
+        super().__init__(context, **kwargs)
+        self.generator: AsyncGenerator[db.firestore.firestore.DocumentSnapshot] = None
+        self.embeds: list[utils.discord.Embed] = []
+        self.num = 0
+        
+    async def generate_new_embed(self): 
+        embed = utils.discord.Embed(
+            title=self.translations.embed.title,
+            colour=utils.discord.Colour.red(),
+            timestamp=utils.utcnow()
+        )
+        
+        num = 0
+        while True:
+            if num == 6:
+                self.embeds.append(embed)
+                return embed
+            
+            try:
+                doc = await self.generator.__anext__()
+                data = doc.to_dict()
+                
+                users = data.get("users", {})
+
+                correct = 0
+                for c in [user.get("correct", 0) for user in users.values()]:
+                    correct += c
+                
+                incorrect = 0
+                for i in [user.get("incorrect", 0) for user in users.values()]:
+                    incorrect += i
+                
+                total = correct + incorrect
+                
+                correct_rate = math.floor(((correct * 100)/total) * 1000)/1000
+                incorrect_rate = math.floor(((incorrect * 100)/total) * 1000)/1000
+                content = self.translations.embed.field_value.format(
+                    correct_rate,
+                    utils.filled_bar(correct_rate),
+                    incorrect_rate,
+                    utils.filled_bar(incorrect_rate),
+                    data["current_number"]["num"],
+                    await self.ctx.bot.fetch_user(int(data["current_number"]["by"]))
+                )
+                
+                embed.add_field(name=await self.ctx.bot.fetch_guild(int(doc.id)), value=content)
+                num += 1
+            except StopAsyncIteration:
+                if num != 0:
+                    self.embeds.append(embed)
+                    return embed
+                
+                raise StopAsyncIteration                
+        
+    async def get_data(self, **kwargs):
+        self.generator = self.ctx.db.collection("countings").order_by(
+            "current_number.num", direction=self.ctx.db.Query.DESCENDING
+        ).stream()
+        
+        return (None,)
+
+    async def get_embed(self, *args) -> utils.discord.Embed:        
+        try:
+            return await self.generate_new_embed()
+        except StopAsyncIteration:
+            embed = utils.discord.Embed(
+                title=self.translations.no_counts.title, 
+                description=self.translations.no_counts.description,
+                colour=utils.discord.Colour.red(),
+                timestamp=utils.utcnow()
+            )
+            return embed
+
+    async def update_components(self, *args):
+        if self.num == 0:
+            self.back.disabled = True
+        
+        if (len(self.embeds) - 1) == self.num:
+            self.next.disabled = False
+
+    @ui.button(label="Back", emoji="⬅️", style=utils.discord.ButtonStyle.green)
+    async def back(self, interaction: utils.discord.Interaction, button: utils.discord.ui.Button, _): 
+        if self.num != 0:
+            self.num -= 1
+        
+        await self.update_components()
+        await interaction.response.edit_message(embed=self.embeds[self.num], view=self)
+    
+    @ui.button(label="Exit", style=utils.discord.ButtonStyle.red)
+    async def exit(self, interaction: utils.discord.Interaction, button: utils.discord.ui.Button, _):
+        await ui.view._StopButton.callback(button, interaction)
+    
+    @ui.button(label="Next", emoji="➡️", style=utils.discord.ButtonStyle.green)
+    async def next(self, interaction: utils.discord.Interaction, button: utils.discord.ui.Button, _): 
+        self.num += 1
+        try:
+            embed = self.embeds[self.num]
+        except IndexError:
+            try:
+                embed = await self.generate_new_embed()
+            except StopAsyncIteration:
+                self.back.disabled = False
+                button.disabled = True
+                return await interaction.response.edit_message(content="Ya no hay mas clubs por explorar :(", embed=None, view=self)
+                
+        await self.update_components()
+        await interaction.response.edit_message(embed=embed, view=self)
 
 
 class Counting(utils.Cog):
@@ -44,7 +159,9 @@ class Counting(utils.Cog):
             data = {
                 "channel": str(channel.id),
                 "numbers_only": True,
-                "record": 0
+                "record": {
+                    "num": 0
+                }
             }
             
             self.countings[ctx.guild.id] = data
@@ -91,9 +208,10 @@ class Counting(utils.Cog):
         else:
             await ctx.send(ctx.translation.confirm.cancel)     
        
-    # @utils.commands.hybrid_command()
-    # async def global_stats(self, ctx: Context):
-    #     ...
+    @utils.commands.hybrid_command()
+    async def global_stats(self, ctx: Context):
+        view = GlobalStats(ctx)
+        await view.start()
         
     @utils.commands.hybrid_command()
     async def server_stats(self, ctx: Context):
@@ -105,10 +223,10 @@ class Counting(utils.Cog):
                 timestamp=utils.utcnow()
             )
             
-            embed.add_field(name=ctx.translation.embed.fields[0], value=counting['record'])
-            if recordt := counting.get("recordt"):
+            embed.add_field(name=ctx.translation.embed.fields[0], value=counting['record']['num'])
+            if recordt := counting["record"].get("time"):
                 timestamp = utils.discord.utils.format_dt(recordt, "R")
-                embed.add_field(name=ctx.translation.embed.fields[1], value=timestamp,)
+                embed.add_field(name=ctx.translation.embed.fields[1], value=timestamp)
             
             current_number = counting.get("current_number")
             if current_number is not None:
@@ -209,8 +327,10 @@ class Counting(utils.Cog):
                 await db.document(f"countings/{guild_id}").update({f"users.{user_id}.incorrect": db.Increment(1)})
         else:
             self.countings[guild_id]["users"] = {
-                "correct": 1 if correct else 0,
-                "incorrect": 0 if correct else 1
+                str(user_id): {
+                    "correct": 1 if correct else 0,
+                    "incorrect": 0 if correct else 1
+                }
             }
                                 
     def increase_or_decrease_number(self, counting: dict, num: int, by: utils.discord.Member):
@@ -219,9 +339,11 @@ class Counting(utils.Cog):
             if current_number.get("by") == str(by.id): 
                 return None
             
-            if int(counting["record"]) < num:
-                counting["record"] = num
-                counting["recordt"] = utils.utcnow()
+            if int(counting["record"]["num"]) < num:
+                counting["record"] = {
+                    "num": num,
+                    "time": utils.utcnow
+                }
             
             counting["current_number"] = {
                 "num": int(current_number["num"]) + 1,
@@ -231,7 +353,12 @@ class Counting(utils.Cog):
             return True
         else:
             return False
-            
+
+    async def add_fail_role(self, counting: dict, member: utils.discord.Member):
+        if role_id := counting.get("fail_role"):
+            role = member.guild.get_role(int(role_id))
+            await member.add_roles(role)
+    
     @utils.Cog.listener()
     async def on_message(self, message: utils.discord.Message): 
         if message.author.bot:
@@ -253,6 +380,7 @@ class Counting(utils.Cog):
                 except:
                     if counting["numbers_only"]:
                         await message.add_reaction(self.emojis["no"])
+                        await self.add_fail_role(counting, message.author)
                         
                         await self.update_user_stats(
                             guild_id=message.guild.id, 
@@ -266,6 +394,8 @@ class Counting(utils.Cog):
                         except:
                             pass
                         
+                        return
+                    else:
                         return
                         
                 increase = self.increase_or_decrease_number(counting, result, message.author)
@@ -282,6 +412,7 @@ class Counting(utils.Cog):
                     return
                 
                 await message.add_reaction(self.emojis["no"])
+                await self.add_fail_role(counting, message.author)
                 
                 if increase is None:
                     await message.channel.send(f"¡¡Lo arruinaste!! {self.emojis['disgustado']}, No puedes contar 2 veces consecutivas")
