@@ -18,6 +18,19 @@
             "timeout": "Intenta pensarlo antes de que me duerma 😴"
         }
     },
+    "v_global_stats": {
+        "embed": {
+            "title": "Estadisticas Globales",
+            "field_value": "Porcentaje correctos: **{}%**\n`{}`\nPorcentaje incorrectos: **{}%**\n`{}`\n\nNumero actual: **{}**\nContado por: **{}**"
+        },
+        "no_counts": {
+            "title": "Nada que ver por aquí",
+            "description": "Lo siento contador pero no hay contadores :("
+        },
+        "back": null,
+        "exit": null,
+        "next": null
+    },
     "c_server_stats": {
         "not_there_server_stats": "No hay estadísticas para el servidor",
         "embed": {

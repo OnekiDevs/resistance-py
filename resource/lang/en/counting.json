@@ -18,6 +18,19 @@
             "timeout": "Try to think about it before I fall asleep 😴"
         }
     },
+    "v_global_stats": {
+        "embed": {
+            "title": "Global Stats",
+            "field_value": "Correct rate: **{}%**\n`{}`\nIncorrect rate: **{}%**\n`{}`\n\nCurrent number: **{}**\nCounted by: `{}`"
+        },
+        "no_counts": {
+            "title": "Nothing to see around here",
+            "description": "Sorry counter but there are no counters :("
+        },
+        "back": null,
+        "exit": null,
+        "next": null
+    },
     "c_server_stats": {
         "not_there_server_stats": "There are no statistics for the server",
         "embed": {
