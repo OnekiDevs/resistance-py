@@ -224,7 +224,8 @@ class Counting(utils.Cog):
             )
             
             embed.add_field(name=ctx.translation.embed.fields[0], value=counting['record']['num'])
-            if recordt := counting["record"].get("time"):
+            recordt = counting["record"].get("time")
+            if recordt is not None:
                 timestamp = utils.discord.utils.format_dt(recordt, "R")
                 embed.add_field(name=ctx.translation.embed.fields[1], value=timestamp)
             
