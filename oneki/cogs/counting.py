@@ -115,7 +115,7 @@ class GlobalStats(ui.View):
             except StopAsyncIteration:
                 self.back.disabled = False
                 button.disabled = True
-                return await interaction.response.edit_message(content="Ya no hay mas clubs por explorar :(", embed=None, view=self)
+                return await interaction.response.edit_message(content="Ya no hay mas servidores por explorar :(", embed=None, view=self)
                 
         await self.update_components()
         await interaction.response.edit_message(embed=embed, view=self)
