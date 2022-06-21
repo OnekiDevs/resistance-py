@@ -343,7 +343,7 @@ class Counting(utils.Cog):
             if int(counting["record"]["num"]) < num:
                 counting["record"] = {
                     "num": num,
-                    "time": utils.utcnow
+                    "time": utils.utcnow()
                 }
             
             counting["current_number"] = {
