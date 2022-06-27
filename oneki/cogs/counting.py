@@ -1,19 +1,71 @@
 import utils
-from utils import ui, db
+from utils import ui
 from utils.ui import confirm
 from utils.context import Context
-from typing import AsyncGenerator
+from typing import Optional, AsyncGenerator, TYPE_CHECKING
 
 import math
 import cmath
 
+if TYPE_CHECKING:
+    from bot import OnekiBot
+    from utils.db import firestore
+
+
+class CountingStruct:
+    def __init__(self, data: dict, *, bot, guild_id: int) -> None:
+        self.guild_id = guild_id
+        self.bot: OnekiBot = bot 
+        
+        self.channel_id = int(data["channel"])
+        self.current_number = data.get("current_number", {"num": 0})
+        self.numbers_only = data.get("numbers_only", True)
+        self.record = data.get("record", {"num": 0})
+        self.fail_role_id = data.get("fail_role")
+        self.users = data.get("users", {})
+    
+    @property
+    def guild(self):
+        return self.bot.get_guild(self.guild_id)
+    
+    @property
+    def channel(self):
+        return self.guild.get_channel(self.channel_id)
+    
+    @property
+    def fail_role(self) -> Optional[utils.discord.Role]:
+        if self.fail_role_id is None:
+            return None
+        
+        return self.guild.get_role(self.fail_role_id)
+    
+    def to_dict(self) -> dict:
+        payload = {
+            "channel": self.channel_id,
+            "numbers_only": self.numbers_only
+        }
+        
+        if int(self.current_number["num"]) != 0:
+            payload["current_number"] = self.current_number
+        
+        if int(self.record["num"]) != 0:
+            payload["record"] = self.record
+            
+        if self.fail_role_id is not None:
+            payload["fail_role"] = self.fail_role_id
+            
+        if self.users:
+            payload["users"] = self.users
+        
+        return payload
+        
 
 class GlobalStats(ui.View):
     name = "global_stats"
     
     def __init__(self, context, **kwargs):
         super().__init__(context, **kwargs)
-        self.generator: AsyncGenerator[db.firestore.firestore.DocumentSnapshot] = None
+        self.generator: AsyncGenerator[firestore.firestore.DocumentSnapshot] = None
         self.embeds: list[utils.discord.Embed] = []
         self.num = 0
         
@@ -58,13 +110,14 @@ class GlobalStats(ui.View):
                 )
                 
                 embed.add_field(name=await self.ctx.bot.fetch_guild(int(doc.id)), value=content)
-                num += 1
-            except StopAsyncIteration:
+            except Exception as e:
                 if num != 0:
                     self.embeds.append(embed)
                     return embed
                 
-                raise StopAsyncIteration                
+                raise e
+            else:
+                num += 1                    
         
     async def get_data(self, **kwargs):
         self.generator = self.ctx.db.collection("countings").order_by(
@@ -124,7 +177,7 @@ class GlobalStats(ui.View):
 class Counting(utils.Cog):
     def __init__(self, bot) -> None:
         super().__init__(bot)
-        self.countings = {}
+        self.countings: dict[int, CountingStruct] = {}
         self.emojis = {
             "yes": "<:yes:885693508533489694>",
             "no": "<:no:885693492632879104>",
@@ -139,55 +192,48 @@ class Counting(utils.Cog):
         async for doc_ref in db.collection("countings").list_documents():
             if doc_ref.id != "users":
                 doc = await doc_ref.get()
-                self.countings[int(doc_ref.id)] = doc.to_dict()
+                self.countings[int(doc_ref.id)] = CountingStruct(
+                    doc.to_dict(), bot=self.bot, guild_id=doc_ref.id
+                )
 
     async def update_counting(self, doc_ref, guild_id, key, value): 
         await doc_ref.update({key: value})
         self.countings[guild_id][key] = value
 
-    @utils.commands.hybrid_group()
-    async def count_settings(self, ctx: Context):
-        pass 
-
-    @count_settings.command()
-    async def set_channel(self, ctx: Context, channel: utils.discord.TextChannel):
+    @utils.commands.hybrid_command()
+    @utils.app_commands.checks.has_permissions(administrator=True)
+    async def count_settings(
+        self, 
+        ctx: Context, 
+        channel: utils.discord.TextChannel, 
+        fail_role: Optional[utils.discord.Role] = None,
+        numbers_only: Optional[bool] = None,
+    ):
         doc_ref = ctx.db.document(f"countings/{ctx.guild.id}")
-        doc = await doc_ref.get()
-        if doc.exists:
-            await self.update_counting(doc_ref, ctx.guild.id, "channel", str(channel.id))
+        counting = self.countings.get(ctx.guild.id)
+        if counting is not None:
+            if counting.channel_id != channel.id:
+                counting.channel_id = channel.id
+            
+            if fail_role is not None:
+                counting.fail_role_id = fail_role
+                
+            if numbers_only is not None:
+                counting.numbers_only = numbers_only
+                
+            doc_ref.update(counting.to_dict())
         else:
             data = {
-                "channel": str(channel.id),
-                "numbers_only": True,
-                "record": {
-                    "num": 0
-                }
+                "channel": str(channel.id)
             }
             
-            self.countings[ctx.guild.id] = data
-            await doc_ref.set(data) 
-
+            self.countings[ctx.guild.id] = CountingStruct(data, bot=self.bot, guild_id=ctx.guild.id)
+            doc_ref.set(data)
+            
         await ctx.send(ctx.translation.success)
 
-    @count_settings.command()
-    async def fail_role(self, ctx: Context, role: utils.discord.Role):
-        doc_ref = ctx.db.document(f"countings/{ctx.guild.id}")
-        try:
-            await self.update_counting(doc_ref, ctx.guild.id, "fail_role", str(role.id))
-            await ctx.send(ctx.translation.success)
-        except:
-            await ctx.send(ctx.translation.no_settings)
-
-    @count_settings.command()
-    async def numbers_only(self, ctx: Context, val: bool):
-        doc_ref = ctx.db.document(f"countings/{ctx.guild.id}")
-        try:
-            await self.update_counting(doc_ref, ctx.guild.id, "numbers_only", val)
-            await ctx.send(ctx.translation.success)
-        except:
-            await ctx.send(ctx.translation.no_settings)
-            
-    @count_settings.command()
+    @utils.commands.hybrid_command()
+    @utils.app_commands.checks.has_permissions(administrator=True)
     async def disable_counting(self, ctx: Context):
         doc_ref = ctx.db.document(f"countings/{ctx.guild.id}")
         
@@ -223,17 +269,16 @@ class Counting(utils.Cog):
                 timestamp=utils.utcnow()
             )
             
-            embed.add_field(name=ctx.translation.embed.fields[0], value=counting['record']['num'])
-            recordt = counting["record"].get("time")
-            if recordt is not None:
-                timestamp = utils.discord.utils.format_dt(recordt, "R")
+            embed.add_field(name=ctx.translation.embed.fields[0], value=counting.record["num"])
+            record_dt = counting.record.get("time")
+            if record_dt is not None:
+                timestamp = utils.discord.utils.format_dt(record_dt, "R")
                 embed.add_field(name=ctx.translation.embed.fields[1], value=timestamp)
             
-            current_number = counting.get("current_number")
-            if current_number is not None:
-                embed.add_field(name=ctx.translation.embed.fields[2], value=current_number['num'])
+            if counting.current_number["num"] != 0:
+                embed.add_field(name=ctx.translation.embed.fields[2], value=counting.current_number["num"])
                 
-                by = await ctx.guild.fetch_member(int(current_number["by"]))
+                by = await ctx.guild.fetch_member(int(counting.current_number["by"]))
                 embed.add_field(name=ctx.translation.embed.fields[3], value=f"```{by}```", inline=False)
                 
             await ctx.send(embed=embed)
@@ -269,8 +314,10 @@ class Counting(utils.Cog):
             )
             embed.add_field(name="🌍 " + ctx.translation.embed.fields_names[0], value=content)
             
-        server_stats = self.countings.get(ctx.guild.id, {}).get("users", {}).get(str(member.id))
+        server_stats = self.countings.get(ctx.guild.id)
         if server_stats is not None:
+            server_stats = server_stats.users.get(str(member.id))
+            
             correct = server_stats.get("correct", 0)
             incorrect = server_stats.get("incorrect", 0)
             total = correct + incorrect
@@ -307,71 +354,86 @@ class Counting(utils.Cog):
                 }
             })
         
-        if users_stats := self.countings.get(guild_id).get("users"):
+        counting = self.countings.get(guild_id)
+        if counting.users:
             if correct:
-                user_stats = users_stats.get(str(user_id))
+                user_stats = counting.users.get(str(user_id))
                 if user_stats is not None:
                     num = user_stats.get("correct", 0)
                     user_stats.update({"correct": num + 1})
                 else:
-                    users_stats[str(user_id)] = {"correct": 1}
+                    counting.users[str(user_id)] = {"correct": 1}
                   
                 await db.document(f"countings/{guild_id}").update({f"users.{user_id}.correct": db.Increment(1)})
             else:
-                user_stats = users_stats.get(str(user_id))
+                user_stats = counting.users.get(str(user_id))
                 if user_stats is not None:
                     num = user_stats.get("incorrect", 0)
                     user_stats.update({"incorrect": num + 1})
                 else:
-                    users_stats[str(user_id)] = {"incorrect": 1}
+                    counting.users[str(user_id)] = {"incorrect": 1}
                     
                 await db.document(f"countings/{guild_id}").update({f"users.{user_id}.incorrect": db.Increment(1)})
         else:
-            self.countings[guild_id]["users"] = {
+            counting.users = {
                 str(user_id): {
                     "correct": 1 if correct else 0,
                     "incorrect": 0 if correct else 1
                 }
             }
                                 
-    def increase_or_decrease_number(self, counting: dict, num: int, by: utils.discord.Member):
-        current_number = counting.pop("current_number", {"num": 0})
-        if (int(current_number["num"]) + 1) == num:
-            if current_number.get("by") == str(by.id): 
-                return None
+    def increase_or_decrease_number(
+        self, 
+        counting: CountingStruct, 
+        num: int, 
+        by: utils.discord.Member, 
+        message: utils.discord.Message
+    ) -> int:
+        if (int(counting.current_number["num"]) + 1) == num:
+            if counting.current_number.get("by") == str(by.id): 
+                return 1
             
-            if int(counting["record"]["num"]) < num:
-                counting["record"] = {
+            if int(counting.record["num"]) < num:
+                counting.record = {
                     "num": num,
                     "time": utils.utcnow()
                 }
             
-            counting["current_number"] = {
-                "num": int(current_number["num"]) + 1,
+            counting.current_number = {
+                "message": str(message.id),
+                "num": int(counting.current_number["num"]) + 1,
                 "by": str(by.id)
             }
             
-            return True
+            return 0
         else:
-            return False
+            return 2
 
-    async def add_fail_role(self, counting: dict, member: utils.discord.Member):
-        if role_id := counting.get("fail_role"):
-            role = member.guild.get_role(int(role_id))
-            await member.add_roles(role)
+    async def pin(self, counting: CountingStruct, channel: utils.discord.TextChannel): 
+        if message_id := counting.current_number.get("message"):
+            old_message = await channel.fetch_message(int(message_id))
+            await old_message.pin()
+
+    async def add_fail_role(self, counting: CountingStruct, member: utils.discord.Member):
+        fail_role = counting.fail_role
+        if fail_role is not None:
+            await member.add_roles(fail_role)
+            await utils.asyncio.sleep(43200.0)            
+            await member.remove_roles(fail_role)
     
     @utils.Cog.listener()
     async def on_message(self, message: utils.discord.Message): 
         if message.author.bot:
             return
         
-        counting: dict = self.countings.get(message.guild.id)
+        counting = self.countings.get(message.guild.id)
         if counting is not None:
-            if str(message.channel.id) == counting["channel"]:
+            if message.channel.id == counting.channel_id:
                 db = self.bot.db
                 doc_ref = db.document(f"countings/{message.guild.id}")
                 try:
-                    result = int(eval(message.content, {
+                    content = message.content.replace("^", "**")
+                    result = int(eval(content, {
                         "pow": math.pow, 
                         "factorial": math.factorial,
                         "sqrt": math.sqrt, 
@@ -379,31 +441,32 @@ class Counting(utils.Cog):
                         "cmath": cmath
                     }, {}))
                 except:
-                    if counting["numbers_only"]:
+                    if counting.numbers_only:
                         await message.add_reaction(self.emojis["no"])
-                        await self.add_fail_role(counting, message.author)
-                        
+
                         await self.update_user_stats(
                             guild_id=message.guild.id, 
                             user_id=message.author.id,
                             correct=False
                         )
                         
+                        await self.pin(counting, message.channel)
+                        
                         try: 
                             counting.pop("current_number")
                             await doc_ref.delete(camp="current_number")
                         except:
                             pass
+
+                        await self.add_fail_role(counting, message.author)
+                    
+                    return
                         
-                        return
-                    else:
-                        return
-                        
-                increase = self.increase_or_decrease_number(counting, result, message.author)
-                if increase:
+                increase = self.increase_or_decrease_number(counting, result, message.author, message)
+                if increase == 0:
                     await message.add_reaction(self.emojis["yes"])
                     
-                    await doc_ref.update(counting)
+                    await doc_ref.update(counting.to_dict())
                     await self.update_user_stats(
                         guild_id=message.guild.id, 
                         user_id=message.author.id,
@@ -412,20 +475,23 @@ class Counting(utils.Cog):
                     
                     return
                 
+                translation = self.translations.event(self.bot.get_guild_lang(message.guild), "counting")
                 await message.add_reaction(self.emojis["no"])
-                await self.add_fail_role(counting, message.author)
                 
-                if increase is None:
-                    await message.channel.send(f"¡¡Lo arruinaste!! {self.emojis['disgustado']}, No puedes contar 2 veces consecutivas")
+                if increase == 1:
+                    await message.channel.send(translation.count_twice_in_a_row.format(self.emojis["disgustado"]))
                 else:
-                    await message.channel.send(f"¡¡Lo arruinaste!! {self.emojis['disgustado']}, El numero es incorrecto")
+                    await message.channel.send(translation.number_incorrect.format(self.emojis["disgustado"]))
                 
                 await self.update_user_stats(
                     guild_id=message.guild.id, 
                     user_id=message.author.id,
                     correct=False
                 )
+                
                 await doc_ref.delete(camp="current_number")
+                await self.pin(counting, message.channel)
+                await self.add_fail_role(counting, message.author)
                             
     
 async def setup(bot):
