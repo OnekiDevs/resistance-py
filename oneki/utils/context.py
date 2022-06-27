@@ -29,7 +29,7 @@ class Context(commands.Context):
     @property
     def debug_channel(self) -> discord.TextChannel:
         # Debug channel
-        return self.bot.get_channel(885674115615301651)
+        return self.bot.debug_channel
 
     async def log(self, message):
         timestamp = datetime.datetime.utcnow()
