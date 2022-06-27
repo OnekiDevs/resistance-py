@@ -1,14 +1,6 @@
 {
-    "c_set_channel": {
+    "c_count_settings": {
         "success": "¡Configuracion establecida con exito!"
-    },
-    "c_fail_role": {
-        "success": "¡Configuracion establecida con exito!",
-        "no_settings": "¡No se a establecido un canal para contar!"
-    },
-    "c_numbers_only": {
-        "success": "¡Configuracion establecida con exito!",
-        "no_settings": "¡No se a establecido un canal para contar!"
     },
     "c_disable_counting": {
         "confirm": {

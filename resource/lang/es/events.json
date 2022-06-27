@@ -2,5 +2,13 @@
     "e_ping": {
         "one": "El prefijo actual es: {}",
         "more": "La lista de prefijos es: {}"
+    },
+    "e_command_error": {
+        "no_private_message": "Este comando no se puede usar en mensajes privados",
+        "disabled_command": "Lo siento. Este comando está deshabilitado y no se puede usar"
+    },
+    "e_counting": {
+        "count_twice_in_a_row": "¡¡Lo arruinaste!! {}, No puedes contar 2 veces consecutivas",
+        "number_incorrect": "¡¡Lo arruinaste!! {}, El numero es incorrecto"
     }
 }

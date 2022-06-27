@@ -1,14 +1,6 @@
 {
-    "c_set_channel": {
+    "c_count_settings": {
         "success": "Configuration established successfully!"
-    },
-    "c_fail_role": {
-        "success": "Configuration established successfully!",
-        "no_settings": "A channel to count has not been established!"
-    },
-    "c_numbers_only": {
-        "success": "Configuration established successfully!",
-        "no_settings": "A channel to count has not been established!"
     },
     "c_disable_counting": {
         "confirm": {

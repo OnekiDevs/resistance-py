@@ -2,5 +2,13 @@
     "e_ping": {
         "one": "The current prefix is: {}",
         "more": "The list of prefixes is: {}"
+    },
+    "e_command_error": {
+        "no_private_message": "This command cannot be used in private messages",
+        "disabled_command": "Sorry. This command is disabled and cannot be used"
+    },
+    "e_counting": {
+        "count_twice_in_a_row": "You ruined it!! {}, you can't count 2 consecutive times",
+        "number_incorrect": "You ruined it!! {}, the number is wrong"
     }
 }
