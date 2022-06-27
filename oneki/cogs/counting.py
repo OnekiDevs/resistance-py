@@ -288,7 +288,7 @@ class Counting(utils.Cog):
     @utils.commands.hybrid_command()
     async def user_stats(self, ctx: Context, member: utils.discord.Member = None):
         member = member or ctx.author
-        doc = await ctx.db.document("countings/users").get()
+        doc = await ctx.db.document(f"users/{member.id}").get()
         embed = utils.discord.Embed(
             colour=utils.discord.Colour.purple(),
             timestamp=utils.utcnow()
@@ -297,7 +297,7 @@ class Counting(utils.Cog):
         embed.set_author(name=member, icon_url=member.display_avatar.url)
         
         data = doc.to_dict() or {}
-        if global_stats := data.get(str(member.id)):
+        if global_stats := data.get("countings"):
             correct = global_stats.get("correct", 0)
             incorrect = global_stats.get("incorrect", 0)
             total = correct + incorrect
@@ -339,16 +339,16 @@ class Counting(utils.Cog):
     async def update_user_stats(self, *, guild_id: int, user_id: int, correct: bool):
         db = self.bot.db
         
-        doc_ref = db.document("countings/users")
+        doc_ref = db.document(f"users/{user_id}")
         doc = await doc_ref.get()
         if doc.exists:
             if correct:
-                await doc_ref.update({f"{user_id}.correct": db.Increment(1)})
+                await doc_ref.update({"countings.correct": db.Increment(1)})
             else:
-                await doc_ref.update({f"{user_id}.incorrect": db.Increment(1)})
+                await doc_ref.update({"countings.incorrect": db.Increment(1)})
         else:
             await doc_ref.set({
-                f"{user_id}": {
+                "countings": {
                     "correct": 1 if correct else 0,
                     "incorrect": 0 if correct else 1
                 }
