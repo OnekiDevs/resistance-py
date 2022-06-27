@@ -11,7 +11,7 @@ import re
 from .cog import Cog
 
 
-utcnow = datetime.datetime.utcnow
+utcnow = discord.utils.utcnow
 is_empty = lambda data_structure: False if data_structure else True
 
 def check_links(string):
