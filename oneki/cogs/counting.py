@@ -363,8 +363,6 @@ class Counting(utils.Cog):
                     user_stats.update({"correct": num + 1})
                 else:
                     counting.users[str(user_id)] = {"correct": 1}
-                  
-                await db.document(f"countings/{guild_id}").update({f"users.{user_id}.correct": db.Increment(1)})
             else:
                 user_stats = counting.users.get(str(user_id))
                 if user_stats is not None:
@@ -372,8 +370,6 @@ class Counting(utils.Cog):
                     user_stats.update({"incorrect": num + 1})
                 else:
                     counting.users[str(user_id)] = {"incorrect": 1}
-                    
-                await db.document(f"countings/{guild_id}").update({f"users.{user_id}.incorrect": db.Increment(1)})
         else:
             counting.users = {
                 str(user_id): {
@@ -393,7 +389,7 @@ class Counting(utils.Cog):
             if counting.current_number.get("by") == str(by.id): 
                 return 1
             
-            if int(counting.record["num"]) < num:
+            if int(counting.record["num"]) <= num:
                 counting.record = {
                     "num": num,
                     "time": utils.utcnow()
@@ -411,8 +407,13 @@ class Counting(utils.Cog):
 
     async def pin(self, counting: CountingStruct, channel: utils.discord.TextChannel): 
         if message_id := counting.current_number.get("message"):
-            old_message = await channel.fetch_message(int(message_id))
-            await old_message.pin()
+            if counting.current_number["num"] >= counting.record["num"]:
+                old_message = await channel.fetch_message(int(message_id))
+                try:
+                    await old_message.pin()
+                except utils.discord.HTTPException:
+                    (await pin.unpin() for pin in await channel.pins())
+                    await old_message.pin()
 
     async def add_fail_role(self, counting: CountingStruct, member: utils.discord.Member):
         fail_role = counting.fail_role
@@ -465,14 +466,13 @@ class Counting(utils.Cog):
                 increase = self.increase_or_decrease_number(counting, result, message.author, message)
                 if increase == 0:
                     await message.add_reaction(self.emojis["yes"])
-                    
-                    await doc_ref.update(counting.to_dict())
                     await self.update_user_stats(
                         guild_id=message.guild.id, 
                         user_id=message.author.id,
                         correct=True
                     )
                     
+                    await doc_ref.update(counting.to_dict())
                     return
                 
                 translation = self.translations.event(self.bot.get_guild_lang(message.guild), "counting")
@@ -489,8 +489,10 @@ class Counting(utils.Cog):
                     correct=False
                 )
                 
-                await doc_ref.delete(camp="current_number")
                 await self.pin(counting, message.channel)
+                
+                counting.current_number = {"num": 0}
+                await doc_ref.delete(camp="current_number")
                 await self.add_fail_role(counting, message.author)
                             
     
