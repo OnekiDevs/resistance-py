@@ -3,8 +3,10 @@ import aiohttp
 import sys
 
 import utils
-from utils import translations, context, db, env
+from utils import translations, context, db, env, ui
+from command_tree import CommandTree
 from typing import Union
+
 
 description = """
 Hola!, soy Oneki un bot multitareas y estare muy feliz en ayudarte en los que necesites :D
@@ -12,17 +14,14 @@ Hola!, soy Oneki un bot multitareas y estare muy feliz en ayudarte en los que ne
 
 initial_extensions = (
     "cogs.user",
-)
-
-private_extensions = (
-    # "cogs.clubs",
+    "cogs.clubs",
     "cogs.counting",
-    "cogs.makeover_event",
 )
 
-def _prefix_callable(bot, msg):
+
+def _prefix_callable(bot, msg: utils.discord.Message):
     user_id = bot.user.id
-    base = [f'<@!{user_id}> ', f'<@{user_id}> ']
+    base = [f"<@!{user_id}> ", f"<@{user_id}> "]
     if msg.guild is None:
         base.append('?')
         base.append('>')
@@ -32,7 +31,9 @@ def _prefix_callable(bot, msg):
     return base
 
 
-class OnekiBot(utils.commands.AutoShardedBot):
+class OnekiBot(utils.commands.Bot):
+    version: str = "0.17a"
+    
     def __init__(self):
         allowed_mentions = utils.discord.AllowedMentions(roles=False, everyone=False, users=True)
         intents = utils.discord.Intents(
@@ -50,10 +51,12 @@ class OnekiBot(utils.commands.AutoShardedBot):
             description=description,
             allowed_mentions=allowed_mentions,
             intents=intents,
-            case_insensitive=True
+            case_insensitive=True,
+            tree_cls=CommandTree
         )
         
         self.db = db.async_client()
+        self.debug_channel_id = env.DEBUG_CHANNEL
 
     async def _get_guild_settings(self):
         # guild_id: list
@@ -75,7 +78,7 @@ class OnekiBot(utils.commands.AutoShardedBot):
 
         guilds_doc = await self.db.document("blacklist/guilds").get()
         if guilds_doc.exists:
-            blacklist["guilds"] = guilds_doc.to_dict().keys()
+            blacklist["guilds"] = set(guilds_doc.to_dict().keys())
             
         users_doc = await self.db.document("blacklist/users").get()
         if users_doc.exists:
@@ -94,13 +97,13 @@ class OnekiBot(utils.commands.AutoShardedBot):
     def get_guild_lang(self, guild):
         return guild.preferred_locale.value.split("-")[0]
 
-    async def add_to_blacklist(self, object, *, reason=None):
+    async def add_to_blacklist(self, object: Union[utils.discord.User, utils.discord.Guild], *, reason=None):
         doc_ref = self.db.document(f"blacklist/{'guilds' if isinstance(object, utils.discord.Guild) else 'users'}")
         await doc_ref.set({str(object.id): reason})
         
-        self.blacklist['guilds' if isinstance(object, utils.discord.Guild) else 'users'].add(str(object.id))
+        self.blacklist["guilds" if isinstance(object, utils.discord.Guild) else "users"].add(str(object.id))
 
-    async def remove_from_blacklist(self, object):
+    async def remove_from_blacklist(self, object: Union[utils.discord.User, utils.discord.Guild]):
         doc_ref = self.db.document(f"blacklist/{'guilds' if isinstance(object, utils.discord.Guild) else 'users'}")
         blacklist = self.blacklist['guilds' if isinstance(object, utils.discord.Guild) else 'users']
         if not str(object.id) in blacklist:
@@ -109,21 +112,25 @@ class OnekiBot(utils.commands.AutoShardedBot):
         await doc_ref.delete(str(object.id))
         blacklist.remove(str(object.id))
 
-    def in_blacklist(self, object):
+    def in_blacklist(self, object: Union[utils.discord.User, utils.discord.Guild]):
         if isinstance(object, utils.discord.Guild):
-            return True if object.id in self.blacklist['guilds'] else False
-        return True if object.id in self.blacklist['users'] else False
+            return True if object.id in self.blacklist["guilds"] else False
+        
+        return True if object.id in self.blacklist["users"] else False
 
     async def load_extensions(self, extensions):
         for ext in extensions:
             try:
                 await self.load_extension(ext)
             except Exception as e:
-                print(f'Failed to load extension {ext}.', file=sys.stderr)
+                print(f"Failed to load extension {ext}.", file=sys.stderr)
                 traceback.print_exc()
 
     async def setup_hook(self) -> None:
-        self.session = aiohttp.ClientSession(loop=self.loop)
+        self.session = aiohttp.ClientSession(
+            loop=self.loop,
+            headers={"User-Agent": f"OnekiBot/{self.version} (+https://github.com/OnekiDevs/oneki-py)"}
+        )
         
         # prefixes[guild_id]: list
         self.prefixes = await self._get_guild_settings()
@@ -131,44 +138,45 @@ class OnekiBot(utils.commands.AutoShardedBot):
         # user_id mapped to True
         # these are users globally blacklisted
         self.blacklist = await self._get_blacklist()
+        
+        if self.debug_channel_id is not None:
+            self.debug_channel = await self.fetch_channel(int(self.debug_channel_id))
             
         self.translations = translations.Translations.load()
         
         # cogs unload
         await self.load_extensions(initial_extensions)
         
-        if env.PRIVATE_EXTENSIONS:
-            print("[*] Private extensions unload")
-            await self.load_extensions(private_extensions)
+        # sync
+        await self.tree.sync()
                 
     async def on_ready(self):
-        await self.tree.sync()
         activity = utils.discord.Activity(type=utils.discord.ActivityType.watching, name=f"{len(self.guilds)} servidores")
-        await self.change_presence(status=utils.discord.Status.idle, activity=activity)
+        await self.change_presence(
+            status=utils.discord.Status.idle, 
+            activity=activity
+        )
 
-        print(f'[+] Ready: {self.user} (ID: {self.user.id})')
+        print(f"[+] Ready: {self.user} (ID: {self.user.id})")
 
-    async def on_command_error(self, ctx, error):
-        if isinstance(error, utils.commands.errors.CommandNotFound): 
-            pass
-        else: 
-            # Error message
-            msg = "".join(traceback.format_exception(type(error), error, error.__traceback__))
-
-            # Embed
-            embed = utils.discord.Embed(color=utils.discord.Colour.blue(), timestamp=utils.datetime.datetime.utcnow())
-            embed.set_author(name="Error", url=f"{ctx.message.jump_url}")
-            embed.add_field(name="Type:", value=f"```{type(error)}```", inline = False)
-            embed.add_field(name="Message:", value=f"```{ctx.message.content}```")
-            embed.add_field(name="Detail:", value=f"```{error}```", inline = False)
-
-            # Send message
-            channel = self.get_channel(885674115615301651)
-            print('Ignoring exception in command {}:'.format(ctx.command))
-            traceback.print_exception(type(error), error, error.__traceback__)
-            
-            await channel.send(f"**Context:**\n```py\n{msg}\n```", embed=embed)
-            await ctx.send(error)
+    async def on_command_error(self, ctx: context.Context, error: utils.commands.CommandError):
+        translation = self.translations.event(ctx.lang, "command_error")
+        if isinstance(error, utils.commands.NoPrivateMessage):
+            await ctx.send(translation.no_private_message)
+        elif isinstance(error, utils.commands.DisabledCommand):
+            # Sorry. This command is disabled and cannot be used.
+            await ctx.send(translation.disabled_command)
+        elif isinstance(error, utils.commands.CommandInvokeError):
+            original = error.original
+            if not isinstance(original, utils.discord.HTTPException):
+                print(f"In {ctx.command.qualified_name}:", file=sys.stderr)
+                traceback.print_tb(original.__traceback__)
+                print(f"{original.__class__.__name__}: {original}", file=sys.stderr)
+                
+                view = ui.ReportBug(ctx, error=original)
+                await view.start()
+        elif isinstance(error, utils.commands.ArgumentParsingError):
+            await ctx.send(str(error))
 
     async def get_context(
         self, 
@@ -178,7 +186,7 @@ class OnekiBot(utils.commands.AutoShardedBot):
     ):
         return await super().get_context(origin, cls=cls)
 
-    async def process_commands(self, message):
+    async def process_commands(self, message: utils.discord.Message):
         ctx = await self.get_context(message)
 
         if message.author.bot:
@@ -189,11 +197,11 @@ class OnekiBot(utils.commands.AutoShardedBot):
 
         await self.invoke(ctx)
 
-    async def on_message(self, message):
+    async def on_message(self, message: utils.discord.Message):
         if message.author.bot:
             return
 
-        # Si pingearon al bot
+        # if the bot is mentioned
         if message.content in [f'<@!{self.user.id}>', f'<@{self.user.id}>']:
             translation = self.translations.event(self.get_guild_lang(message.guild), "ping")
             prefixes = self.get_raw_guild_prefixes(message.guild.id)
