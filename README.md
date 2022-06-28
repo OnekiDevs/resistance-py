@@ -5,7 +5,7 @@ Oneki-bot written in python
 ## Installation
 **Python 3.8 or higher is required**
 
-```
+```bash
 # clone the repo
 $ git clone https://github.com/OnekiDevs/oneki-py.git
 
