@@ -216,7 +216,7 @@ class Counting(utils.Cog):
                 counting.channel_id = channel.id
             
             if fail_role is not None:
-                counting.fail_role_id = fail_role
+                counting.fail_role_id = fail_role.id
                 
             if numbers_only is not None:
                 counting.numbers_only = numbers_only
@@ -226,6 +226,12 @@ class Counting(utils.Cog):
             data = {
                 "channel": str(channel.id)
             }
+            
+            if fail_role is not None:
+                data["fail_role"] = fail_role.id
+                
+            if numbers_only is not None:
+                data["numbers_only"] = numbers_only
             
             self.countings[ctx.guild.id] = CountingStruct(data, bot=self.bot, guild_id=ctx.guild.id)
             doc_ref.set(data)
