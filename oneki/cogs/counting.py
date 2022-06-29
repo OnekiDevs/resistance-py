@@ -221,7 +221,7 @@ class Counting(utils.Cog):
             if numbers_only is not None:
                 counting.numbers_only = numbers_only
                 
-            doc_ref.update(counting.to_dict())
+            await doc_ref.update(counting.to_dict())
         else:
             data = {
                 "channel": str(channel.id)
@@ -234,7 +234,7 @@ class Counting(utils.Cog):
                 data["numbers_only"] = numbers_only
             
             self.countings[ctx.guild.id] = CountingStruct(data, bot=self.bot, guild_id=ctx.guild.id)
-            doc_ref.set(data)
+            await doc_ref.set(data)
             
         await ctx.send(ctx.translation.success)
 
