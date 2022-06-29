@@ -469,8 +469,8 @@ class Counting(utils.Cog):
                     
                     return
                         
-                increase = self.increase_or_decrease_number(counting, result, message.author, message)
-                if increase == 0:
+                result = self.increase_or_decrease_number(counting, result, message.author, message)
+                if result == 0:
                     await message.add_reaction(self.emojis["yes"])
                     await self.update_user_stats(
                         guild_id=message.guild.id, 
@@ -484,10 +484,14 @@ class Counting(utils.Cog):
                 translation = self.translations.event(self.bot.get_guild_lang(message.guild), "counting")
                 await message.add_reaction(self.emojis["no"])
                 
-                if increase == 1:
-                    await message.channel.send(translation.count_twice_in_a_row.format(self.emojis["disgustado"]))
+                if result == 1:
+                    await message.channel.send(
+                        translation.count_twice_in_a_row.format(message.author.mention, self.emojis["disgustado"])
+                    )
                 else:
-                    await message.channel.send(translation.number_incorrect.format(self.emojis["disgustado"]))
+                    await message.channel.send(
+                        translation.number_incorrect.format(message.author.mention, self.emojis["disgustado"])
+                    )
                 
                 await self.update_user_stats(
                     guild_id=message.guild.id, 

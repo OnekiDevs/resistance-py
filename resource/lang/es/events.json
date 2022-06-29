@@ -8,7 +8,7 @@
         "disabled_command": "Lo siento. Este comando está deshabilitado y no se puede usar"
     },
     "e_counting": {
-        "count_twice_in_a_row": "¡¡Lo arruinaste!! {}, No puedes contar 2 veces consecutivas",
-        "number_incorrect": "¡¡Lo arruinaste!! {}, El numero es incorrecto"
+        "count_twice_in_a_row": "¡¡{} Lo arruinaste!! {}, No puedes contar 2 veces consecutivas",
+        "number_incorrect": "¡¡{} Lo arruinaste!! {}, El numero es incorrecto"
     }
 }
