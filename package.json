@@ -1,19 +1,19 @@
 {
     "name": "oneki",
-    "description": "Module of Oneki Bot in Python",
+    "description": "Module of Oneki Bot in Python for La Resistencia",
     "version": "0.16.14",
     "scripts": {
         "heroku:deploy": "git push heroku",
-        "heroku:remote": "git remote add heroku https://git.heroku.com/onekimpy.git"
+        "heroku:remote": "git remote add heroku https://git.heroku.com/resistance-mpy.git"
     },
     "repository": {
         "type": "git",
-        "url": "git+https://github.com/OnekiDevs/oneki-py.git"
+        "url": "git+https://github.com/OnekiDevs/resistence-py.git"
     },
     "bugs": {
-        "url": "https://github.com/OnekiDevs/oneki-py/issues"
+        "url": "https://github.com/OnekiDevs/resistence-py/issues"
     },
     "author": "",
     "license": "GPL",
-    "homepage": "https://github.com/OnekiDevs/oneki-ts#readme"
+    "homepage": "https://github.com/OnekiDevs/resistence-py#readme"
 }
