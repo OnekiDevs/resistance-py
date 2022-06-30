@@ -1,10 +1,10 @@
 {
     "name": "oneki",
     "description": "Module of Oneki Bot in Python",
-    "version": "0.16.13",
+    "version": "0.16.14",
     "scripts": {
-        "heroku:push": "git push heroku-oneki && git push heroku-resistance",
-        "heroku:remote": "git remote add heroku-oneki https://git.heroku.com/onekimpy.git && git remote add heroku-resistance https://git.heroku.com/resistancempy.git"
+        "heroku:deploy": "git push heroku",
+        "heroku:remote": "git remote add heroku https://git.heroku.com/onekimpy.git"
     },
     "repository": {
         "type": "git",
