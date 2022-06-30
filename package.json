@@ -8,12 +8,12 @@
     },
     "repository": {
         "type": "git",
-        "url": "git+https://github.com/OnekiDevs/resistence-py.git"
+        "url": "git+https://github.com/OnekiDevs/resistance-py.git"
     },
     "bugs": {
-        "url": "https://github.com/OnekiDevs/resistence-py/issues"
+        "url": "https://github.com/OnekiDevs/resistance-py/issues"
     },
     "author": "",
     "license": "GPL",
-    "homepage": "https://github.com/OnekiDevs/resistence-py#readme"
+    "homepage": "https://github.com/OnekiDevs/resistance-py#readme"
 }
