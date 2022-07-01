@@ -39,15 +39,17 @@ class View(ui.View):
         pass # this implementation is also optional
         
     async def process_data(self):
-        data = await self.get_data(**self.kwargs)
-        data = data or (None,)
+        data = await discord.utils.maybe_coroutine(self.get_data, **self.kwargs)
+        try:
+            data = tuple(data)
+        except TypeError:
+            data = (None,)
+         
+        content = await discord.utils.maybe_coroutine(self.get_content, data)
+        self.embed = await discord.utils.maybe_coroutine(self.get_embed, data)
+        await discord.utils.maybe_coroutine(self.update_components, data)
         
-        content = await self.get_content(*data)
-        self.embed = await self.get_embed(*data)
-        await self.update_components(*data)
-        
-        kwargs = {"content": content, "embed": self.embed, "view": self}
-        return kwargs
+        return {"content": content, "embed": self.embed, "view": self}
         
     async def start(self, interaction: Optional[discord.Interaction] = None, *, ephemeral = False):
         if self.name is not None:
