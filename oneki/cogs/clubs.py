@@ -1,43 +1,54 @@
 import utils
 from utils import ui, db
 from utils.ui import confirm
-from typing import AsyncGenerator
+from typing import AsyncGenerator, Optional, Coroutine, TYPE_CHECKING
 
 import io
 import json
 import yaml
 import uuid
+from bot import OnekiBot
+
+if TYPE_CHECKING:
+    from utils.db import AsyncClient, AsyncDocumentReference
+
+
+class ClubError(utils.app_commands.CheckFailure):
+    pass
 
 
 class Club:
     """Represents a club data model"""
     def __init__(self, *, guild: utils.discord.Guild) -> None:        
         self.guild = guild
+        self.doc_ref: Optional[AsyncDocumentReference] = None
         self.channel_id = None
         
-        self.name = ""
-        self.description = ""
-        self.owner_id = None
-        self.is_public = False
-        self.is_nsfw = False
-        self._banner = None
+        self.name: str = ""
+        self.description: str = ""
+        self.owner_id: int = None
+        self.is_public: bool = False
+        self.is_nsfw: bool = False
+        self.banner_url: Optional[str] = None
         
         self.members: dict[int, utils.discord.Member] = {}
         self.mods: dict[int, utils.discord.Member] = {}
-        self.bans: dict[int, utils.discord.Member] = {}
+        
+        self.bans: list[int] = {}
         self.mutes: dict[int, utils.discord.Member] = {}
     
     @classmethod
-    async def from_data(cls, data: dict, *, guild: utils.discord.Guild):
+    async def from_data(cls, data: dict, *, guild: utils.discord.Guild, doc_ref: db.AsyncDocumentReference):
         club = cls(guild=guild)
         
+        club.doc_ref = doc_ref
         club.channel_id = int(data["channel"])
         club.name = data["name"]
         club.description = data["description"]
         club.owner_id = int(data["owner"])
         club.is_public = data["public"]
         club.is_nsfw = data["nsfw"]
-        club._banner = data.get("banner")
+        club.banner_url = data.get("banner")
 
         for mid in data["members"]:
             member = await club._fetch_member(int(mid))
@@ -47,9 +58,7 @@ class Club:
             member = club.members[int(mid)]
             club.mods[int(mid)] = member
             
-        for mid in data.get("bans", []):
-            member = await club._fetch_member(int(mid))
-            club.bans[int(mid)] = member
+        club.bans = data.get("bans", [])
 
         for mid in data.get("mutes", []):
             member = club.members[int(mid)]
@@ -63,32 +72,58 @@ class Club:
             member = await self.guild.fetch_member(member_id)
             
         return member
-                
-    def _add_member(self, member: utils.discord.Member) -> None:
-        self.members[member.id] = member
-                
-    def _remove_member(self, member: utils.discord.Member) -> None:
-        self.members.pop(member.id, None)
-        
-    def _add_ban(self, member: utils.discord.Member) -> None:
-        self.bans[member.id] = member
-        self._remove_member(member)
-                
-    def _remove_ban(self, member: utils.discord.Member) -> None:
-        self.bans.pop(member.id, None)
-        
-    def _add_member(self, member: utils.discord.Member) -> None:
-        self.mutes[member.id] = member
-                
-    def _remove_member(self, member: utils.discord.Member) -> None:
-        self.mutes.pop(member.id, None)
-        
-    @property
-    def banner_url(self) -> str:
-        return self._banner
     
     def get_member(self, member_id: int) -> utils.discord.Member:
         return self.members.get(member_id)
+                
+    def add_member(self, member: utils.discord.Member) -> Coroutine:
+        self.members[member.id] = member
+        return self.doc_ref.update({
+            "members": db.firestore.firestore.ArrayUnion([str(member.id)])
+        })
+                
+    def remove_member(self, member: utils.discord.Member) -> Coroutine:
+        self.members.pop(member.id, None)
+        return self.doc_ref.update({
+            "members": db.firestore.firestore.ArrayRemove([str(member.id)])
+        })
+        
+    def add_mod(self, member: utils.discord.Member) -> Coroutine:
+        self.mods[member.id] = member
+        return self.doc_ref.update({
+            "mods": db.firestore.firestore.ArrayUnion([str(member.id)])
+        })
+                
+    def remove_mod(self, member: utils.discord.Member) -> Coroutine:
+        self.mods.pop(member.id, None)
+        return self.doc_ref.update({
+            "mods": db.firestore.firestore.ArrayRemove([str(member.id)])
+        })
+        
+    async def add_ban(self, member: utils.discord.Member) -> None:
+        self.bans.append(member.id)
+        await self.doc_ref.update({
+            "bans": db.firestore.firestore.ArrayUnion([str(member.id)])
+        })
+        await self.remove_member(member)
+                
+    def remove_ban(self, member: utils.discord.Member) -> Coroutine:
+        self.bans.pop(member.id, None)
+        return self.doc_ref.update({
+            "bans": db.firestore.firestore.ArrayRemove([str(member.id)])
+        })
+        
+    def add_mute(self, member: utils.discord.Member) -> Coroutine:
+        self.mutes[member.id] = member
+        return self.doc_ref.update({
+            "mutes": db.firestore.firestore.ArrayUnion([str(member.id)])
+        })
+                
+    def remove_mute(self, member: utils.discord.Member) -> Coroutine:
+        self.mutes.pop(member.id, None)
+        return self.doc_ref.update({
+            "mutes": db.firestore.firestore.ArrayRemove([str(member.id)])
+        })
     
     @property
     def owner(self) -> utils.discord.Member:
@@ -105,7 +140,7 @@ class Club:
             colour=utils.discord.Colour.blurple(), 
             timestamp=utils.utcnow()
         )
-        embed.add_field(name="Owner", value=f"```{self.owner}```")
+        embed.add_field(name="Owner", value=f"```{self.owner}/{self.owner_id}```")
         embed.add_field(name="Is Nsfw:", value="```"+ {True: "Si", False: "No"}[self.is_nsfw] + "```")
         
         if self.banner_url is not None:
@@ -134,93 +169,111 @@ class Club:
                 
             payload["members"] = members
 
-        if not utils.is_empty(self.bans):
-            bans = []
-            for mid in self.bans.keys():
-                bans.append(str(mid))
-                
-            payload["bans"] = bans
+        if self.bans:
+            payload["bans"] = self.bans
             
-        if not utils.is_empty(self.mutes):
+        if self.mutes:
             mutes = []
             for mid in self.mutes.keys():
-                bans.append(str(mid))
+                mutes.append(str(mid))
                 
             payload["mutes"] = mutes
             
         return payload
         
+    def update(self) -> Coroutine:
+        return self.doc_ref.update(self.to_dict())
+        
 
 class IsNsfw(ui.View):
+    name = "nsfw"
+    
     def __init__(self):
         super().__init__()
         self.value = False
         
-    async def get_content(self, _) -> str:
-        return "¿El club sera nsfw?"
+    async def start(self, interaction = None, *, ephemeral=False):
+        await super().start(interaction, ephemeral=ephemeral)
+        return await self.wait()
+        
+    def get_content(self, _) -> str:
+        return self.translations.content
         
     @ui.button(label="Yes", style=utils.discord.ButtonStyle.red)
-    @ui.disable_when_pressed
-    async def yes(self, interaction: utils.discord.Interaction, button: utils.discord.ui.Button):
+    async def yes(self, interaction: utils.discord.Interaction, button: utils.discord.ui.Button, _):
+        await interaction.response.edit_message(
+            content=self.translations.success.format(interaction.user.name),
+            view=None
+        )
+        
         self.value = True
-        return {
-            "content": f"Gracias por tu solicitud, {interaction.user.name}!\nEspere la aprobación de los admins/mods ;)"
-        }
+        self.stop()
         
     @ui.button(label="No", style=utils.discord.ButtonStyle.blurple)
-    @ui.disable_when_pressed
-    async def no(self, interaction: utils.discord.Interaction, button: utils.discord.ui.Button):
+    async def no(self, interaction: utils.discord.Interaction, button: utils.discord.ui.Button, _):
+        await interaction.response.edit_message(
+            content=self.translations.success.format(interaction.user.name),
+            view=None
+        )
+        
+        self.stop()
+
+
+class Questionnaire(ui.Modal, title="Questionnaire Club"): 
+    modal_name: str = "questionnaire"
+    
+    def get_items(self) -> dict[str, utils.discord.ui.Item]:
         return {
-            "content": f"Gracias por tu solicitud, {interaction.user.name}!\nEspere la aprobación de los admins/mods ;)", 
+            "name": ui.TextInput(label="Name", placeholder="Club name", min_length=4, max_length=32),
+            "description": ui.TextInput(
+                label="Description", 
+                placeholder="A short and concise description",
+                style=utils.discord.TextStyle.paragraph, 
+                min_length=15, max_length=230
+            )
         }
 
-
-class Questionnaire(ui.Modal, title="Questionnaire Club"):
-    name = ui.TextInput(label="Nombre", placeholder="Nombre del club", min_length=4, max_length=32)
-    description = ui.TextInput(
-        label="description", 
-        placeholder="Una descripcion corta y concisa",
-        style=utils.discord.TextStyle.paragraph, 
-        min_length=15, max_length=120
-    )
-
     async def on_submit(self, interaction: utils.discord.Interaction):
-        db = interaction.client.db
+        db: AsyncClient = interaction.client.db
+        
+        doc_ref = db.document(f"guilds/{interaction.guild_id}/clubs/wait_approval")
+        doc = await doc_ref.get()
+        data = doc.to_dict()
         
         club = Club(guild=interaction.guild)
         club.name = self.name.value
         club.description = self.description.value
         club.owner_id = interaction.user.id
         
-        view = IsNsfw()
-        await view.start(interaction, ephemeral=True)
-
-        await view.wait()
-        club.is_nsfw = view.value
+        if data.get("nsfw_clubs_enabled"):
+            view = IsNsfw()
+            await view.start(interaction, ephemeral=True)
+            
+            club.is_nsfw = view.value
+        else:
+            await interaction.response.send_message(self.translations.sent.format(interaction.user.name), ephemeral=True)
         
         id_hex = uuid.uuid1().hex
-        doc_ref = db.document(f"guilds/{interaction.guild_id}/clubs/wait_approval")
-        doc = await doc_ref.get()
         if doc.exists:
             await doc_ref.update({id_hex: club.to_dict()})
         else:
             await doc_ref.set({id_hex: club.to_dict()})
         
-        channel = await interaction.client.fetch_channel(doc.to_dict()["approval_channel"])
+        channel = await interaction.client.fetch_channel(data["approval_channel"])
         
         embed = club.get_embed()
         embed.add_field(name="ID:", value=f"```{id_hex}```", inline=False)
         
-        await channel.send("Nuevo club por aprobar", embed=embed)
+        await channel.send(self.translations.new_club, embed=embed)
 
 
 class Explorer(ui.View):
-    NAME = "explorer"
+    name: str = "explorer"
     
     def __init__(self, context = None, **kwargs):
         super().__init__(context, **kwargs)
-        self.generator: AsyncGenerator[db.AsyncDocumentReference] = None
-        self.clubs: list[list[Club, db.AsyncDocumentReference]] = []
+        self.generator: AsyncGenerator[AsyncDocumentReference] = None
+        self.clubs: list[Club] = []
         self.num = 0
         
     async def generate_new_club(self, guild: utils.discord.Guild, member: utils.discord.Member): 
@@ -230,12 +283,12 @@ class Explorer(ui.View):
                 continue
             
             doc = await doc_ref.get()
-            club = await Club.from_data(doc.to_dict(), guild=guild)
+            club = await Club.from_data(doc.to_dict(), guild=guild, doc_ref=doc_ref)
             if club.is_public: 
                 if member.id in club.bans:
                     continue
 
-                self.clubs.append([club, doc_ref])
+                self.clubs.append(club)
                 return club
         
     async def get_data(self, *, client, guild: utils.discord.Guild, member: utils.discord.Member):
@@ -245,6 +298,7 @@ class Explorer(ui.View):
         return (client, guild, member)
 
     async def get_content(self, *args) -> str:
+        return self.translations.content
         return "Club Explorer"
 
     async def get_embed(self, client, guild, member) -> utils.discord.Embed:        
@@ -252,22 +306,28 @@ class Explorer(ui.View):
             club = await self.generate_new_club(guild, member)
             return club.get_embed()
         except StopAsyncIteration:
-            embed = utils.discord.Embed(
-                title="Nada que ver aqui", 
-                description="Lo siento explorador, pero parece que no hay clubs por explorar :(",
+            return utils.discord.Embed(
+                title=self.translations.embed_not_found.title, 
+                description=self.translations.embed_not_found.description,
                 colour=utils.discord.Colour.red(),
                 timestamp=utils.utcnow()
             )
-            return embed
 
     async def update_components(self, client, guild, member):
-        club, _ = self.clubs[self.num]
+        club = self.clubs[self.num]
+        
+        self.back.disabled = False
+        self.join_or_exit.disabled = False
+        self.next.disabled = False
         
         if self.num == 0:
             self.back.disabled = True
         
         if (len(self.clubs) - 1) == self.num:
             self.next.disabled = False
+            
+        if member.id == club.owner_id:
+            self.join_or_exit.disabled = True
         
         if member.id in club.mutes:
             self.join_or_exit.disabled = True
@@ -277,35 +337,32 @@ class Explorer(ui.View):
         if self.num != 0:
             self.num -= 1
         
+        embed = self.clubs[self.num].get_embed()
         await self.update_components(None, None, interaction.user)
-        await interaction.response.edit_message(embed=self.clubs[self.num][0], view=self)
+        await interaction.response.edit_message(embed=embed, view=self)
     
     @ui.button(label="Join/Exit", style=utils.discord.ButtonStyle.red)
-    async def join_or_exit(self, interaction: utils.discord.Interaction, button: utils.discord.ui.Button, _): 
-        club, doc_ref = self.clubs[self.num]
-        if interaction.user.id in club.members:             
+    async def join_or_exit(self, interaction: utils.discord.Interaction, button: utils.discord.ui.Button, translation): 
+        club = self.clubs[self.num]
+        if interaction.user.id in club.members: # Exit
             overwrites = {**club.channel.overwrites, interaction.user: utils.discord.PermissionOverwrite(view_channel=False)}
             
-            club._remove_member(interaction.user)
-            await doc_ref.update({"members": interaction.client.db.ArrayRemove([str(interaction.user.id)])})
-            
-            await interaction.response.send_message(f"Te has salido de {club.name}", ephemeral=True)
-        else: 
+            await club.remove_member(interaction.user)
+            await interaction.response.send_message(translation.exit.format(club.name), ephemeral=True)
+        else: # Join
             overwrites = {**club.channel.overwrites, interaction.user: utils.discord.PermissionOverwrite(view_channel=True)}
+            await club.add_member(interaction.user)
             
-            club._add_member(interaction.user)
-            await doc_ref.update({"members": interaction.client.db.ArrayUnion([str(interaction.user.id)])})
-            
-            await interaction.response.send_message(f"Te has unido a {club.name}", ephemeral=True)
-            await club.channel.send(f"¡**{interaction.user}** se ha unido al club!")
+            await interaction.response.send_message(translation.join.format(club.name), ephemeral=True)
+            await club.channel.send(translation.new_user.format(club.name))
         
         await club.channel.edit(overwrites=overwrites)
     
     @ui.button(label="Next", emoji="➡️", style=utils.discord.ButtonStyle.green)
-    async def next(self, interaction: utils.discord.Interaction, button: utils.discord.ui.Button, _): 
+    async def next(self, interaction: utils.discord.Interaction, button: utils.discord.ui.Button, translation): 
         self.num += 1
         try:
-            club = self.clubs[self.num][0]
+            club = self.clubs[self.num]
             embed = club.get_embed()
         except IndexError:
             try:
@@ -314,17 +371,10 @@ class Explorer(ui.View):
             except StopAsyncIteration:
                 button.disabled = True
                 self.join_or_exit.disabled = True
-                return await interaction.response.edit_message(content="Ya no hay mas clubs por explorar :(", embed=None, view=self)
+                return await interaction.response.edit_message(content=translation.no_more_clubs, embed=None, view=self)
                 
         await self.update_components(None, None, interaction.user)
         await interaction.response.edit_message(embed=embed, view=self)
-            
-                  
-def check_is_admin():
-    def predicate(interaction: utils.discord.Interaction) -> bool:
-        return interaction.user.guild_permissions.administrator == True
-    
-    return utils.app_commands.check(predicate)
         
         
 def check_is_mod():
@@ -350,7 +400,7 @@ async def clubs_autocomplete(
     if doc.exists:
         return [
             utils.app_commands.Choice(name=f"{data['name']} / {club_id}", value=club_id)
-            for club_id, data in doc.to_dict().items() if not club_id in ["approval_channel", "clubs_category"]
+            for club_id, data in doc.to_dict().items() if not club_id in ["approval_channel", "clubs_category", "nsfw_clubs_enabled"]
         ]
 
 
@@ -370,142 +420,131 @@ async def your_clubs_autocomplete(
 class ClubSettings(utils.app_commands.Group, name="club_settings"):
     """Manage settings of a club"""
 
-    async def check_is_owner(self, interaction: utils.discord.Interaction, club_name: str):
-        db = interaction.client.db
-        
-        doc_ref = db.document(f"guilds/{interaction.guild_id}/clubs/{club_name}")
+    async def get_club(self, interaction: utils.discord.Interaction, club_id: str): 
+        db: AsyncClient = interaction.client.db
+        doc_ref = db.document(f"guilds/{interaction.guild_id}/clubs/{club_id}")
         doc = await doc_ref.get()
         
         if doc.exists:
-            club = await Club.from_data(doc.to_dict(), guild=interaction.guild)
-            if interaction.user.id == club.owner_id: 
-                return (club, doc_ref)
+            club = await Club.from_data(
+                doc.to_dict(), 
+                guild=interaction.guild, 
+                doc_ref=doc_ref
+            )
             
-            await interaction.response.send_message("No tienes permisos para hacer esto D:", ephemeral=True)
-            return
-            
-        await interaction.response.send_message("P-Pero, el club no existe :/", ephemeral=True)
-        return
+            if interaction.user.id == club.owner.id:
+                return club
+                
+            raise ClubError("You are not have permissions for this action")
+        
+        raise ClubError("Club not found")
+        
+    @utils.app_commands.command()
+    @utils.app_commands.rename(club_id="club")
+    @utils.app_commands.autocomplete(club_id=your_clubs_autocomplete)
+    async def change_name(self, interaction: utils.discord.Interaction, club_id: str, new_name: str): 
+        translation = interaction.client.translations.command(interaction.locale.value, "change_name")
+        club = await self.get_club(interaction, club_id)
+        await club.doc_ref.update({"name": new_name})
+        
+        channel = club.channel
+        await channel.edit(name=new_name)
+        
+        await interaction.response.send_message(translation.success.format(new_name), ephemeral=True)
+        await channel.send(translation.announcement.format(new_name))
+        
+    @utils.app_commands.command()
+    @utils.app_commands.rename(club_id="club")
+    @utils.app_commands.autocomplete(club_id=your_clubs_autocomplete)
+    async def set_as_public(self, interaction: utils.discord.Interaction, club_id: str): 
+        translation = interaction.client.translations.command(interaction.locale.value, "set_as_public")
+        club = await self.get_club(interaction, club_id)
+        club.doc_ref.update({"public": True})
+        
+        await interaction.response.send_message(translation.success, ephemeral=True)
 
-    group = utils.app_commands.Group(name="mod", description="...")
-        
     @utils.app_commands.command()
-    @utils.app_commands.autocomplete(club=your_clubs_autocomplete)
-    async def change_name(self, interaction: utils.discord.Interaction, club: str, new_name: str): 
-        data = await self.check_is_owner(interaction, club)
-        if data is not None:
-            _club, doc_ref = data
+    @utils.app_commands.rename(club_id="club")
+    @utils.app_commands.autocomplete(club_id=your_clubs_autocomplete)
+    async def set_banner(self, interaction: utils.discord.Interaction, club_id: str, banner: utils.discord.Attachment):
+        translation = interaction.client.translations.command(interaction.locale.value, "set_banner")
+        club = await self.get_club(interaction, club_id)
+        
+        url = banner.url.split("?")[0] + "?width=750&height=240"
+        club.banner_url = url
 
-            await doc_ref.update({"name": new_name})
-            
-            channel = _club.channel
-            await channel.edit(name=new_name)
-            
-            await interaction.response.send_message(f"El nombre del club se cambio a {new_name}!", ephemeral=True)
-            await channel.send(f"Atentos todos, el nombre del club fue cambiado a {new_name}!")
+        view = confirm.Confirm(content=translation.content, embed=club.get_embed())
+        await view.start(interaction, ephemeral=True)
         
-    @utils.app_commands.command()
-    @utils.app_commands.autocomplete(club=your_clubs_autocomplete)
-    async def set_as_public(self, interaction: utils.discord.Interaction, club: str): 
-        data = await self.check_is_owner(interaction, club)
-        if data is not None:
-            _, doc_ref = data
-  
-            await doc_ref.update({"public": True})
-            await interaction.response.send_message("El club a sido establecido como publico, ahora todos podran verlo en el explorador de clubs!", ephemeral=True)
-        
-    @utils.app_commands.command()
-    @utils.app_commands.autocomplete(club=your_clubs_autocomplete)
-    async def set_banner(self, interaction: utils.discord.Interaction, club: str, banner: utils.discord.Attachment):
-        data = await self.check_is_owner(interaction, club)
-        if data is not None:
-            _club, doc_ref = data
-        
-            url = banner.url.split("?")[0] + "?width=750&height=240"
-            
-            async def get_content(self, _):
-                return "Seguro que quieres establecer este banner?"
-            
-            async def get_embed(self, _):
-                return _club.get_embed()
-            
-            view = confirm.Confirm()
-            view.get_content = get_content
-            view.get_embed = get_embed
-            
-            view.start(interaction, ephemeral=True)
-                        
-            await view.wait()    
-            if view.value:
-                await doc_ref.update({"banner": url})
+        if view.value:
+            await club.doc_ref.update({"banner": url})
                 
     @utils.app_commands.command()
-    @utils.app_commands.autocomplete(club=your_clubs_autocomplete)
-    async def export(self, interaction: utils.discord.Interaction, club: str):
-        data = await self.check_is_owner(interaction, club)
-        if data is not None:
-            _club, _ = data
-            
-            _club.channel_id = None
-            _club.mods = []
-            _club.bans = []
-            _club.mutes = []
-            
-            data = _club.to_dict()
-            del data["owner"]
-            del data["members"]
-            
-            file = utils.discord.File(
-                fp=io.StringIO(json.dumps(data, indent=4)),
-                filename="club_settings.json",
-                description=f"Las configuraciones de: {_club.name}"
-            )
-            await interaction.response.send_message(file=file, ephemeral=True)
+    @utils.app_commands.rename(club_id="club")
+    @utils.app_commands.autocomplete(club_id=your_clubs_autocomplete)
+    async def export(self, interaction: utils.discord.Interaction, club_id: str):
+        translation = interaction.client.translations.command(interaction.locale.value, "export")
+        club = await self.get_club(interaction, club_id)
+        
+        club.mods = []
+        club.bans = []
+        club.mutes = []
+
+        data = club.to_dict()
+        del data["channel"]
+        del data["owner"]
+        del data["members"]
+                    
+        file = utils.discord.File(
+            fp=io.StringIO(json.dumps(data, indent=4)),
+            filename="club_settings.json",
+            description=translation.file_description.format(club.name)
+        )
+        await interaction.response.send_message(file=file, ephemeral=True)
             
     @utils.app_commands.command(name="import")
-    @utils.app_commands.autocomplete(club=your_clubs_autocomplete)
-    @utils.app_commands.rename(file="json")
-    async def _import(self, interaction: utils.discord.Interaction, club: str, file: utils.discord.Attachment):
-        data = await self.check_is_owner(interaction, club)
-        if data is not None:
-            _club, doc_ref = data
-            
-            data = _club.to_dict()
-            if file.content_type.startswith("application/json"):
-                j = json.loads(await file.read())
-                data.update(j)
-            elif file.filename.endswith((".yml", ".yaml")):
-                y = yaml.safe_load(await file.read())
-                data.update(y)
-            else:
-                return await interaction.response.send_message("Solo se admiten archivo con extension .json, .yml o .yaml", ephemeral=True)
-                
-            await doc_ref.update(data)
-            await interaction.response.send_message("Configuraciones cargadas correctamente", ephemeral=True)
+    @utils.app_commands.rename(club_id="club", file="json")
+    @utils.app_commands.autocomplete(club_id=your_clubs_autocomplete)
+    async def _import(self, interaction: utils.discord.Interaction, club_id: str, file: utils.discord.Attachment):
+        translation = interaction.client.translations.command(interaction.locale.value, "import")
+        club = await self.get_club(interaction, club_id)
+        
+        data = club.to_dict()
+        if file.content_type.startswith("application/json"):
+            j = json.loads(await file.read())
+            data.update(j)
+        elif file.filename.endswith((".yml", ".yaml")):
+            y = yaml.safe_load(await file.read())
+            data.update(y)
+        else:
+            raise ClubError(translation.not_supported_file_extension)
+        
+        await club.doc_ref.update(data)
+        await interaction.response.send_message("Configuraciones cargadas correctamente", ephemeral=True)
+             
+    mod_group = utils.app_commands.Group(name="mod", description="...")
                         
-    @group.command(name="add")
-    @utils.app_commands.autocomplete(club=your_clubs_autocomplete)
-    async def add_mod(self, interaction: utils.discord.Interaction, club: str, member: utils.discord.Member):
-        db = interaction.client.db
-        data = await self.check_is_owner(interaction, club)
-        if data is not None:
-            _club, doc_ref = data
-            await doc_ref.update({"mods": db.ArrayUnion([str(member.id)])})
+    @mod_group.command(name="add")
+    @utils.app_commands.rename(club_id="club")
+    @utils.app_commands.autocomplete(club_id=your_clubs_autocomplete)
+    async def add_mod(self, interaction: utils.discord.Interaction, club_id: str, member: utils.discord.Member):
+        translation = interaction.client.translations.command(interaction.locale.value, "add_mod")
+        club = await self.get_club(interaction, club_id)
+        await club.add_mod(member)
             
-            await interaction.response.send_message(f"Ahora {member}, es un moderador del club", ephemeral=True)
-            await _club.channel.send(f"Atentos, {member} a sido ascendido a moderador del club!")
-            
-    @group.command(name="remove")
-    @utils.app_commands.autocomplete(club=your_clubs_autocomplete)
-    async def remove_mod(self, interaction: utils.discord.Interaction, club: str, member: utils.discord.Member):
-        db = interaction.client.db
-        data = await self.check_is_owner(interaction, club)
-        if data is not None:
-            _club, doc_ref = data
-            await doc_ref.update({"mods": db.ArrayRemove([str(member.id)])})
-            
-            await interaction.response.send_message(f"Ahora {member} a dejado de ser un moderador del club", ephemeral=True)
-            await _club.channel.send(f"Atentos, {member} a dejado de ser un moderador del club :(")
+        await interaction.response.send_message(translation.success.format(member), ephemeral=True)
+        await club.channel.send(translation.announcement.format(member))
+        
+    @mod_group.command(name="remove")
+    @utils.app_commands.rename(club_id="club")
+    @utils.app_commands.autocomplete(club_id=your_clubs_autocomplete)
+    async def remove_mod(self, interaction: utils.discord.Interaction, club_id: str, member: utils.discord.Member):
+        translation = interaction.client.translations.command(interaction.locale.value, "remove_mod")
+        club = await self.get_club(interaction, club_id)
+        await club.remove_mod(member)
+        
+        await interaction.response.send_message(translation.success.format(member), ephemeral=True)
+        await club.channel.send(translation.announcement.format(member))
         
 
 class ClubModerator(utils.app_commands.Group, name="club_moderator"): 
@@ -514,14 +553,15 @@ class ClubModerator(utils.app_commands.Group, name="club_moderator"):
     @utils.app_commands.command()
     @check_is_mod()
     async def mute(self, interaction: utils.discord.Interaction, member: utils.discord.Member):
-        db = interaction.client.db
-        
+        translation = interaction.client.translations.command(interaction.locale.value, "cmute")
+        db: AsyncClient = interaction.client.db
         docs = db.collection(f"guilds/{interaction.guild_id}/clubs").where("channel", "==", str(interaction.channel_id)).stream()
-        async for doc in docs: # should only be one
-            club = await Club.from_data(doc.to_dict(), guild=interaction.guild)
+        
+        async for doc in docs: 
+            club = await Club.from_data(doc.to_dict(), guild=interaction.guild, doc_ref=doc.reference)
             if not member.id in club.mods or interaction.user.id == club.owner_id:
                 if not member.id == club.owner_id:
-                    doc_ref = db.document(f"guilds/{interaction.guild_id}/clubs/{doc.id}")
+                    await club.add_mute(member)
                     
                     channel = club.channel
                     overwrites = {
@@ -530,21 +570,19 @@ class ClubModerator(utils.app_commands.Group, name="club_moderator"):
                     }
                     
                     await channel.edit(overwrites=overwrites)
-                    
-                    await doc_ref.update({"mutes": db.ArrayUnion([str(member.id)])})
-                    return await interaction.response.send_message(f"{member} a sido muteado :(")
+                    return await interaction.response.send_message(translation.success.format(member))
             
-            await interaction.response.send_message("Lo siento, pero no puedes mutear a este usuario :/", ephemeral=True)
+            await interaction.response.send_message(translation.not_have_permissions, ephemeral=True)
             
     @utils.app_commands.command()
     @check_is_mod() 
     async def unmute(self, interaction: utils.discord.Interaction, member: utils.discord.Member):
-        db = interaction.client.db
-        
+        translation = interaction.client.translations.command(interaction.locale.value, "cunmute")
+        db: AsyncClient = interaction.client.db
         docs = db.collection(f"guilds/{interaction.guild_id}/clubs").where("channel", "==", str(interaction.channel_id)).stream()
-        async for doc in docs: # should only be one
-            doc_ref = db.document(f"guilds/{interaction.guild_id}/clubs/{doc.id}")
-            
+        
+        async for doc in docs: 
+            await doc.reference.update({"mutes": db.ArrayRemove([str(member.id)])})
             channel = await interaction.client.fetch_channel(doc.to_dict()["channel"])
             overwrites = {
                 **channel.overwrites,
@@ -552,21 +590,20 @@ class ClubModerator(utils.app_commands.Group, name="club_moderator"):
             }
             
             await channel.edit(overwrites=overwrites)
-            
-            await doc_ref.update({"mutes": db.ArrayRemove([str(member.id)])})
-            await interaction.response.send_message(f"{member} a sido desmuteado :D")
+            await interaction.response.send_message(translation.success.format(member))
             
     @utils.app_commands.command()
     @check_is_mod() 
     async def ban(self, interaction: utils.discord.Interaction, member: utils.discord.Member):
-        db = interaction.client.db
-        
+        translation = interaction.client.translations.command(interaction.locale.value, "cban")
+        db: AsyncClient = interaction.client.db
         docs = db.collection(f"guilds/{interaction.guild_id}/clubs").where("channel", "==", str(interaction.channel_id)).stream()
-        async for doc in docs: # should only be one
-            club = await Club.from_data(doc.to_dict(), guild=interaction.guild)
+        
+        async for doc in docs: 
+            club = await Club.from_data(doc.to_dict(), guild=interaction.guild, doc_ref=doc.reference)
             if not member.id in club.mods or interaction.user.id == club.owner_id:
                 if not member.id == club.owner_id:
-                    doc_ref = db.document(f"guilds/{interaction.guild_id}/clubs/{doc.id}")
+                    await club.add_ban(member)
                     
                     channel = club.channel
                     overwrites = {
@@ -575,28 +612,23 @@ class ClubModerator(utils.app_commands.Group, name="club_moderator"):
                     }
                     
                     await channel.edit(overwrites=overwrites)
-                    
-                    await doc_ref.update({"bans": db.ArrayUnion([str(member.id)])})
-                    return await interaction.response.send_message(f"{member} a sido baneado :(")
+                    return await interaction.response.send_message(translation.success.format(member))
             
-            await interaction.response.send_message("Lo siento, pero no puedes banear a este usuario :/", ephemeral=True)
+            await interaction.response.send_message(translation.not_have_permissions, ephemeral=True)
             
     @utils.app_commands.command()
     @check_is_mod() 
     async def unban(self, interaction: utils.discord.Interaction, member: utils.discord.Member):
-        db = interaction.client.db
-        
+        translation = interaction.client.translations.command(interaction.locale.value, "cunban")
+        db: AsyncClient = interaction.client.db
         docs = db.collection(f"guilds/{interaction.guild_id}/clubs").where("channel", "==", str(interaction.channel_id)).stream()
-        async for doc in docs: # should only be one
-            doc_ref = db.document(f"guilds/{interaction.guild_id}/clubs/{doc.id}")
-            await doc_ref.update({"bans": db.ArrayRemove([str(member.id)])})
-            await interaction.response.send_message(f"{member} a sido desbaneado :D", ephemeral=True)
+        
+        async for doc in docs: 
+            await doc.reference.update({"bans": db.ArrayRemove([str(member.id)])})
+            await interaction.response.send_message(translation.success.format(member), ephemeral=True)
     
 
-class Clubs(utils.commands.Cog):
-    def __init__(self, bot):
-        self.bot = bot
-        
+class Clubs(utils.Cog):
     club_settings = ClubSettings()
     club_moderator = ClubModerator()
     
@@ -608,45 +640,72 @@ class Clubs(utils.commands.Cog):
         channel = await category.create_text_channel(data["name"], overwrites=overwrites, nsfw=data["nsfw"])
         await channel.edit(description=data["description"])
         
-        await channel.send("Su aventura comienza aqui!")
         return channel
     
     @utils.app_commands.command()
     async def create_club(self, interaction: utils.discord.Interaction):
-        await interaction.response.send_modal(Questionnaire())
+        await Questionnaire().start(interaction)
+        
+    @utils.app_commands.command()
+    @utils.app_commands.checks.has_permissions(administrator=True)
+    async def clubs_settings(
+        self, 
+        interaction: utils.discord.Interaction,
+        category: utils.discord.CategoryChannel,
+        approval_channel: utils.discord.TextChannel,
+        nsfw_clubs_enabled: Optional[bool] = None
+    ):
+        translation = self.translations.command(interaction.locale.value, "clubs_settings")
+        db: AsyncClient = interaction.client.db
+        
+        doc_ref = db.document(f"guilds/{interaction.guild_id}/clubs/wait_approval")
+        data = {
+            "clubs_category": category.id,
+            "approval_channel": approval_channel.id
+        }
+        
+        if nsfw_clubs_enabled is not None:
+            data["nsfw_clubs_enabled"]
+
+        doc = await doc_ref.get()
+        if doc.exists:
+            await doc_ref.update(data)
+        else:
+            await doc_ref.set(data)
+        
+        await interaction.response.send_message(translation.success)
         
     @utils.app_commands.command()
     @utils.app_commands.autocomplete(club=clubs_autocomplete)
-    @check_is_admin()
-    async def approval(self, interaction: utils.discord.Interaction, club: str):
-        db = interaction.client.db
+    @utils.app_commands.checks.has_permissions(administrator=True)
+    async def club_approval(self, interaction: utils.discord.Interaction, club: str):
+        translation = self.translations.command(interaction.locale.value, "club_approval")
+        db: AsyncClient = interaction.client.db
         
         doc_ref = db.document(f"guilds/{interaction.guild_id}/clubs/wait_approval")
         doc = await doc_ref.get()
         if doc.exists:
             clubs_data = doc.to_dict()
-            club_data = clubs_data.get(club)
-            if club_data is not None:
+            if club_data := clubs_data.get(club):
                 await doc_ref.delete(club)
-                
-                guild = await interaction.client.fetch_guild(interaction.guild_id)
-                category = await guild.fetch_channel(clubs_data["clubs_category"])
-                owner = await guild.fetch_member(club_data["owner"])
-                
+                category = await interaction.guild.fetch_channel(clubs_data["clubs_category"])
+                owner = await interaction.guild.fetch_member(club_data["owner"])
+
                 channel = await self.create_channel(category, owner, club_data)
+                await channel.send(translation.create_channel)
                 club_data["channel"] = str(channel.id)
                 
                 doc_ref = db.document(f"guilds/{interaction.guild_id}/clubs/{club}")
                 await doc_ref.set(club_data)
                 
-                return await interaction.response.send_message("Club aprobado con exito!")
+                return await interaction.response.send_message(translation.approved)
 
-            return await interaction.response.send_message("No puedo aprobar algo que no existe :(")
-                
-        await interaction.response.send_message("No hay clubs por aprobar")
+            return await interaction.response.send_message(translation.not_found)
+            
+        await interaction.response.send_message(translation.without_clubs)
     
     @utils.app_commands.command()
-    async def explorer(self, interaction: utils.discord.Interaction): 
+    async def club_explorer(self, interaction: utils.discord.Interaction): 
         view = Explorer(
             client=interaction.client, 
             guild=interaction.guild, 
@@ -655,6 +714,6 @@ class Clubs(utils.commands.Cog):
         await view.start(interaction, ephemeral=True)
     
 
-async def setup(bot: utils.commands.Bot):
+async def setup(bot: OnekiBot):
     await bot.add_cog(Clubs(bot))
     
