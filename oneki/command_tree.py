@@ -8,10 +8,14 @@ from utils.ui import ReportBug
 
 class CommandTree(app_commands.CommandTree):
     async def on_error(self, interaction: discord.Interaction, error: app_commands.AppCommandError) -> None:
-        await super().on_error(interaction, error)
-        if isinstance(error, app_commands.CommandInvokeError):
-            original = error.original
-            if not isinstance(original, discord.HTTPException):
-                view = ReportBug(error=original)
-                await view.start(interaction)
+        error = getattr(error, "original", error)
+        if not isinstance(error, discord.HTTPException):                
+            view = ReportBug(error=error)
+            await view.start(interaction)
+        else:
+            await interaction.response.send_message(f"{error.__class__.__name__}: {error}")
+
+        print(f"In {interaction.command.qualified_name}:", file=sys.stderr)
+        traceback.print_tb(error.__traceback__)
+        print(f"{error.__class__.__name__}: {error}", file=sys.stderr)
         
