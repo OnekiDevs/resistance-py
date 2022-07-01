@@ -47,7 +47,7 @@ def info_embed(ctx, member, translation):
 
 
 class Profile(ui.ExitableView):
-    NAME = "profile"
+    name = "profile"
     DEFAULT_BANNER = "https://media.discordapp.net/attachments/885674115946643463/931022708030980126/Nuevo_proyecto.png"
     
     def __init__(self, context: Context, **kwargs):
