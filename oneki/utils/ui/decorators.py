@@ -9,7 +9,7 @@ def component(deco):
         @deco
         @functools.wraps(func)
         async def callback_wrapper(self, interaction: discord.Interaction, component: Union[ui.Button, ui.Select]):
-            if self.name is not None:
+            if self.name is not None and hasattr(self.translations, func.__name__):
                 translation = getattr(self.translations, func.__name__)
             else:
                 translation = None
@@ -44,10 +44,13 @@ def disable_when_pressed(func):
         try:
             data = await func(self, interaction, component, translation)
         finally:
-            await self.disable(**data)
+            if data is not None:
+                await self.disable(**data)
+            else:
+                await self.disable()
 
     return callback_wrapper
-    
-    
+
+
 def select(**kwargs):
     return component(ui.select(**kwargs))
