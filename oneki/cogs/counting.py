@@ -242,14 +242,9 @@ class Counting(utils.Cog):
     @utils.app_commands.checks.has_permissions(administrator=True)
     async def disable_counting(self, ctx: Context):
         doc_ref = ctx.db.document(f"countings/{ctx.guild.id}")
-        
-        async def get_content(self, _):
-            return ctx.translation.confirm.content
-        
-        view = confirm.Confirm(ctx)
-        view.get_content = get_content
-        
+        view = confirm.Confirm(ctx, content=ctx.translation.confirm.content)
         await view.start(ephemeral=True)
+        
         if view.value is None:
             await ctx.send(ctx.translation.confirm.timeout)
         elif view.value:
