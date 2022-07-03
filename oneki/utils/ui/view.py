@@ -3,6 +3,9 @@ from discord import ui
 from ..context import Context
 from typing import Optional, TYPE_CHECKING
 
+import sys
+import traceback
+
 if TYPE_CHECKING:
     from ..translations import Translation
 
@@ -13,12 +16,14 @@ def _can_be_disabled(item):
 
 class View(ui.View):
     TIMEOUT = 320
+    user_check = True
     name: Optional[str] = None
     
     def __init__(self, context: Optional[Context] = None, *, timeout: Optional[float] = TIMEOUT, **kwargs):
         super().__init__(timeout=timeout)
         
         self.ctx = context
+        self.author: Optional[discord.Member] = None
         self.msg: Optional[discord.Message] = None
         self.embed: Optional[discord.Embed] = None
         
@@ -58,10 +63,21 @@ class View(ui.View):
         kwargs["ephemeral"] = ephemeral
         
         if interaction is not None:
+            self.author = interaction.user
             await interaction.response.send_message(**kwargs)
             self.msg = await interaction.original_message()
         else:
+            self.author = self.ctx.author
             self.msg = await self.ctx.send(**kwargs)
+        
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        if self.author is None:
+            raise RuntimeError("can't user check can be done with unbooted view")
+        
+        if self.user_check:
+            return interaction.user == self.author
+            
+        return True
         
     async def update(self):
         kwargs = await self.process_data()
@@ -90,11 +106,13 @@ class View(ui.View):
         await self.msg.edit(view=self, **kwargs)
         
     async def on_error(self, interaction: discord.Interaction, error: Exception, item) -> None:
-        await super().on_error(interaction, error, item)
-        
         from .report_bug import ReportBug
         view = ReportBug(error=error)
         await view.start(interaction)
+        
+        print(f"In view {self} for item {item}:", file=sys.stderr)
+        traceback.print_tb(error.__traceback__)
+        print(f"{error.__class__.__name__}: {error}", file=sys.stderr)
         
     async def on_timeout(self) -> None:
         await self.disable()
@@ -102,7 +120,7 @@ class View(ui.View):
         
 class _StopButton(discord.ui.Button):
     async def callback(self, interaction):
-        view = self.view
+        view: View = self.view
         if view is None:
             raise RuntimeError("Missing view to disable.")
 
