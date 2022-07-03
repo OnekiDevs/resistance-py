@@ -161,20 +161,23 @@ class OnekiBot(utils.commands.Bot):
 
     async def on_command_error(self, ctx: context.Context, error: utils.commands.CommandError):
         translation = self.translations.event(ctx.lang, "command_error")
-        error = getattr(error, "original", error)
-        if isinstance(error, utils.commands.NoPrivateMessage):
+        err = getattr(error, "original", error)
+        err = getattr(err, "original", err) # original hybrid command error
+        if isinstance(err, utils.commands.CommandNotFound):
+            return
+        elif isinstance(err, utils.commands.NoPrivateMessage):
             await ctx.send(translation.no_private_message)
-        elif isinstance(error, utils.commands.DisabledCommand):
+        elif isinstance(err, utils.commands.DisabledCommand):
             await ctx.send(translation.disabled_command)
-        if not isinstance(error, utils.discord.HTTPException):                
-            view = ui.ReportBug(ctx, error=error)
+        elif not isinstance(err, utils.discord.HTTPException):                
+            view = ui.ReportBug(ctx, error=err)
             await view.start()
         else:
-            await ctx.send(f"{error.__class__.__name__}: {error}")
+            await ctx.send(f"{err.__class__.__name__}: {err}")
 
         print(f"In {ctx.command.qualified_name}:", file=sys.stderr)
-        traceback.print_tb(error.__traceback__)
-        print(f"{error.__class__.__name__}: {error}", file=sys.stderr)
+        traceback.print_tb(err.__traceback__)
+        print(f"{err.__class__.__name__}: {err}", file=sys.stderr)
 
     async def get_context(
         self, 
