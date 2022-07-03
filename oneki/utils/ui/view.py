@@ -27,7 +27,7 @@ class View(ui.View):
         self.kwargs = kwargs
         
     async def get_data(self, **kwargs): 
-        return (None,)
+        return None
         
     async def get_content(self, *args) -> Optional[str]:
         return None
@@ -39,15 +39,15 @@ class View(ui.View):
         pass # this implementation is also optional
         
     async def process_data(self):
-        data = await self.get_data(**self.kwargs)
-        data = data or (None,)
-        
-        content = await self.get_content(*data)
-        self.embed = await self.get_embed(*data)
-        await self.update_components(*data)
-        
-        kwargs = {"content": content, "embed": self.embed, "view": self}
-        return kwargs
+        data = await discord.utils.maybe_coroutine(self.get_data, **self.kwargs)
+        if not isinstance(data, tuple):
+            data = (data,)
+
+        content = await discord.utils.maybe_coroutine(self.get_content, *data)
+        self.embed = await discord.utils.maybe_coroutine(self.get_embed, *data)
+        await discord.utils.maybe_coroutine(self.update_components, *data)
+         
+        return {"content": content, "embed": self.embed, "view": self}
         
     async def start(self, interaction: Optional[discord.Interaction] = None, *, ephemeral = False):
         if self.name is not None:

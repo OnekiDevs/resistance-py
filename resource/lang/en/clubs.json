@@ -1,7 +1,82 @@
 {
+    "v_nsfw": {
+        "content": "Is the club NSFW?",
+        "success": "Thank you for your request, {}!\nWait for admins/mods approval ;)"
+    },
+    "v_questionnaire": {
+        "title": "Questionnaire Club",
+        "name": {
+            "label": "Name",
+            "placeholder": "Club name"
+        },
+        "description": {
+            "label": "Description",
+            "placeholder": "A short and concise description"
+        },
+        "new_club": "New club to be approved",
+        "sent": "Thank you for your request, {}!\nWait for admins/mods approval ;)"
+    },
     "v_explorer": {
-        "back": {},
-        "join_or_exit": {},
-        "next": {}
+        "content": "Club Explorer",
+        "embed_not_found": {
+            "title": "Nothing to see here",
+            "description": "Sorry explorer, but it looks like there are no clubs to explore :("
+        },
+        "join_or_exit": {
+            "exit": "You have left `{}`",
+            "join": "You have joined `{}`",
+            "new_user": "**{}** has joined the club!"
+        },
+        "next": {
+            "no_more_clubs": "There are no more clubs to explore :("
+        }
+    },
+    "c_change_name": {
+        "success": "Club name changed to {}!",
+        "announcement": "Attention everyone, the name of the club has been changed to {}!"
+    },
+    "c_set_as_public": {
+        "success": "The club has been set as public, now everyone will be able to see it in the club explorer!"
+    },
+    "c_set_banner": {
+        "content": "Are you sure you want to set this banner?"
+    },
+    "c_export": {
+        "file_description": "The configurations of: {}"
+    },
+    "c_import": {
+        "success": "Configurations loaded correctly!",
+        "not_supported_file_extension": "Only files with .json, .yml or .yaml extension are accepted."
+    },
+    "c_add_mod": {
+        "success": "Now {}, is a moderator of the club",
+        "announcement": "Heads up, {} has been promoted to club moderator!"
+    },
+    "c_remove_mod": {
+        "success": "Now {} is no longer a moderator of the club",
+        "announcement": "Attention, {} is no longer a moderator of the club :("
+    },
+    "c_cmute": {
+        "success": "{} has been muted :(",
+        "not_have_permissions": "I'm sorry, but you can't mute this user :/"
+    },
+    "c_cunmute": {
+        "success": "{} has been unmuted :D"
+    },
+    "c_cban": {
+        "success": "{} to be banned :(",
+        "not_have_permissions": "I'm sorry, but you can't ban this user :/"
+    },
+    "c_cunban": {
+        "success": "{} has been unbanned :D"
+    },
+    "c_club_approval": {
+        "create_channel": "Your adventure starts here!",
+        "approved": "Club successfully approved!",
+        "not_found": "I cannot approve something that does not exist :(",
+        "without_clubs": "No clubs to approve"
+    },
+    "c_clubs_settings": {
+        "success": "Configuration successfully established!"
     }
 }

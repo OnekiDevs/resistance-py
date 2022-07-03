@@ -14,7 +14,7 @@ Hola!, soy Oneki un bot multitareas y estare muy feliz en ayudarte en los que ne
 
 initial_extensions = (
     "cogs.user",
-    # "cogs.clubs",
+    "cogs.clubs",
     "cogs.counting",
 )
 
@@ -161,22 +161,23 @@ class OnekiBot(utils.commands.Bot):
 
     async def on_command_error(self, ctx: context.Context, error: utils.commands.CommandError):
         translation = self.translations.event(ctx.lang, "command_error")
-        if isinstance(error, utils.commands.NoPrivateMessage):
+        err = getattr(error, "original", error)
+        err = getattr(err, "original", err) # original hybrid command error
+        if isinstance(err, utils.commands.CommandNotFound):
+            return
+        elif isinstance(err, utils.commands.NoPrivateMessage):
             await ctx.send(translation.no_private_message)
-        elif isinstance(error, utils.commands.DisabledCommand):
-            # Sorry. This command is disabled and cannot be used.
+        elif isinstance(err, utils.commands.DisabledCommand):
             await ctx.send(translation.disabled_command)
-        elif isinstance(error, utils.commands.CommandInvokeError):
-            original = error.original
-            if not isinstance(original, utils.discord.HTTPException):
-                print(f"In {ctx.command.qualified_name}:", file=sys.stderr)
-                traceback.print_tb(original.__traceback__)
-                print(f"{original.__class__.__name__}: {original}", file=sys.stderr)
-                
-                view = ui.ReportBug(ctx, error=original)
-                await view.start()
-        elif isinstance(error, utils.commands.ArgumentParsingError):
-            await ctx.send(str(error))
+        elif not isinstance(err, utils.discord.HTTPException):                
+            view = ui.ReportBug(ctx, error=err)
+            await view.start()
+        else:
+            await ctx.send(f"{err.__class__.__name__}: {err}")
+
+        print(f"In {ctx.command.qualified_name}:", file=sys.stderr)
+        traceback.print_tb(err.__traceback__)
+        print(f"{err.__class__.__name__}: {err}", file=sys.stderr)
 
     async def get_context(
         self, 
