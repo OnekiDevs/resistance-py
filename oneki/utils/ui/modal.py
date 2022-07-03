@@ -2,6 +2,9 @@ import discord
 from discord import ui 
 from typing import Optional, TYPE_CHECKING
 
+import sys
+import traceback
+
 if TYPE_CHECKING:
     from ..translations import Translation
 
@@ -39,8 +42,11 @@ class Modal(ui.Modal):
         await interaction.response.send_modal(self)
         
     async def on_error(self, interaction: discord.Interaction, error: Exception) -> None:
-        await super().on_error(interaction, error)
-        
         from .report_bug import ReportBug
         view = ReportBug(error=error)
         await view.start(interaction)
+        
+        print(f"In modal {self}:", file=sys.stderr)
+        traceback.print_tb(error.__traceback__)
+        print(f"{error.__class__.__name__}: {error}", file=sys.stderr)
+        
