@@ -23,6 +23,7 @@ class View(ui.View):
         self.embed: Optional[discord.Embed] = None
         
         self.translations: Optional[Translation] = None
+        self._disabled = False
         
         self.kwargs = kwargs
         
@@ -76,10 +77,11 @@ class View(ui.View):
                 item.disabled = True
         
     async def disable(self, **kwargs):
-        if self.is_finished():
+        if self._disabled:
             return
         
         self.stop()
+        self._disabled = True
         self._disable_children()
         
         if self.msg is None:
