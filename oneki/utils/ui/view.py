@@ -27,7 +27,7 @@ class View(ui.View):
         self.kwargs = kwargs
         
     async def get_data(self, **kwargs): 
-        return (None,)
+        return None
         
     async def get_content(self, *args) -> Optional[str]:
         return None
@@ -40,15 +40,13 @@ class View(ui.View):
         
     async def process_data(self):
         data = await discord.utils.maybe_coroutine(self.get_data, **self.kwargs)
-        try:
-            data = tuple(data)
-        except TypeError:
-            data = (None,)
+        if not isinstance(data, tuple):
+            data = (data,)
+
+        content = await discord.utils.maybe_coroutine(self.get_content, *data)
+        self.embed = await discord.utils.maybe_coroutine(self.get_embed, *data)
+        await discord.utils.maybe_coroutine(self.update_components, *data)
          
-        content = await discord.utils.maybe_coroutine(self.get_content, data)
-        self.embed = await discord.utils.maybe_coroutine(self.get_embed, data)
-        await discord.utils.maybe_coroutine(self.update_components, data)
-        
         return {"content": content, "embed": self.embed, "view": self}
         
     async def start(self, interaction: Optional[discord.Interaction] = None, *, ephemeral = False):
