@@ -7,20 +7,22 @@ from PIL import Image
 from typing import Optional
 
 
-def avatar_embed(ctx, member, translation):
-    member = member or ctx.author
-    avatar = member.guild_avatar.url if member.guild_avatar is not None else member.avatar.url
+def avatar_embed(member: utils.discord.Member, author: utils.discord.Member, translation):
+    avatar = member.display_avatar.url
     
     embed = utils.discord.Embed(colour=member.color, timestamp=utils.utcnow())
     embed.set_author(name=translation.embed.author.format(member), url=avatar)
     embed.set_image(url=avatar)
-    embed.set_footer(text=translation.embed.footer.format(ctx.author.name), icon_url=ctx.author.avatar.url)
+    embed.set_footer(text=translation.embed.footer.format(author.name), icon_url=author.avatar.url)
     
     return embed
 
 
-def info_embed(ctx, member, translation):
-    roles = "".join([role.mention for role in member.roles])
+def info_embed(member: utils.discord.Member, author: utils.discord.Member, translation):
+    roles = "".join([
+        role.mention for role in member.roles 
+        if role != member.guild.default_role
+    ])
 
     embed = utils.discord.Embed(
         title=translation.embed.title,
@@ -28,20 +30,29 @@ def info_embed(ctx, member, translation):
         color=member.color,
         timestamp=utils.utcnow(), 
     )
-    embed.set_author(name=f"{member}", url=member.avatar.url)
-    embed.set_thumbnail(url=member.avatar.url)
+    embed.set_author(name=f"{member}", url=member.avatar.url).set_thumbnail(url=member.avatar.url)
     
     if member.activity is not None: 
         activity = member.activity if isinstance(member.activity, utils.discord.CustomActivity) else member.activity.name
         embed.add_field(name=translation.embed.fields[0], value=f"```{activity}```", inline=False)
     
-    embed.add_field(name=translation.embed.fields[1], value=utils.discord.utils.format_dt(member.created_at, "F"))
-    embed.add_field(name=translation.embed.fields[2], value=utils.discord.utils.format_dt(member.joined_at, "F"))
-    embed.add_field(name=translation.embed.fields[3], value=f"```{member.color}```")
-    embed.add_field(name=translation.embed.fields[4], value=f"```{member.id}```")
-    embed.add_field(name=translation.embed.fields[5], value=f"```{member.raw_status}```")
+    embed.add_field(
+        name=translation.embed.fields[1], 
+        value=utils.discord.utils.format_dt(member.created_at, "F")
+    ).add_field(
+        name=translation.embed.fields[2], 
+        value=utils.discord.utils.format_dt(member.joined_at, "F")
+    ).add_field(
+        name=translation.embed.fields[3], value=f"```{member.color}```"
+    ).add_field(
+        name=translation.embed.fields[4], value=f"```{member.id}```"
+    ).add_field(
+        name=translation.embed.fields[5], value=f"```{member.raw_status}```"
+    )
     
-    embed.set_footer(text=translation.embed.footer.format(ctx.author.name), icon_url=ctx.author.avatar.url)
+    embed.set_footer(
+        text=translation.embed.footer.format(author.name), icon_url=author.avatar.url
+    )
     
     return embed
 
@@ -52,13 +63,17 @@ class Profile(ui.ExitableView):
     
     def __init__(self, context: Context, **kwargs):
         super().__init__(context, **kwargs)
-        self.member = kwargs["member"]
+        self.member: utils.discord.Member = None
+        self.member_banner: Optional[utils.discord.Asset] = None
     
     async def get_data(self, *, member: utils.discord.Member):
-        return member
+        self.member = member
+        user = await member._state._get_client().fetch_user(member.id)
+        self.member_banner = user.banner
+        return self.member, user.banner
     
-    async def get_embed(self, member: utils.discord.Member) -> utils.discord.Embed:
-        if member.banner is None:
+    async def get_embed(self, member: utils.discord.Member, banner: Optional[utils.discord.Asset]) -> utils.discord.Embed:
+        if banner is None:
             path = f"resource/img/default_banner_{member.id}.png"
             default_banner = Image.new("RGB", (600, 240), member.colour.to_rgb())
             default_banner = default_banner.save(path)
@@ -67,37 +82,37 @@ class Profile(ui.ExitableView):
                 
             os.remove(path)
         else:
-            banner = member.banner.url
+            banner = banner.url
         
         embed = utils.discord.Embed(colour=member.color, timestamp=utils.utcnow())
         embed.set_author(name=self.translations.embed.author.format(member))
         embed.set_image(url=banner)
-        embed.set_footer(text=self.translations.embed.footer.format(self.ctx.author.name), icon_url=self.ctx.author.avatar.url)
+        embed.set_footer(text=self.translations.embed.footer.format(self.author.name), icon_url=self.author.avatar.url)
         
         return embed
     
     @ui.button(label="Avatar", style=utils.discord.ButtonStyle.secondary)
     @ui.change_color_when_used
     async def avatar(self, interaction: utils.discord.Interaction, button: utils.discord.ui.Button, translation):
-        embed = avatar_embed(self.ctx, self.member, translation)
+        embed = avatar_embed(self.member, interaction.user, translation)
         await interaction.response.edit_message(embed=embed, view=self)
         
     @ui.button(label="Banner", emoji="🖼️", style=utils.discord.ButtonStyle.secondary)
     @ui.change_color_when_used
     async def banner(self, interaction: utils.discord.Interaction, button: utils.discord.ui.Button, translation):
-        banner = self.member.banner.url if self.member.banner is not None else self.DEFAULT_BANNER
+        banner = self.member_banner.url if self.member_banner is not None else self.DEFAULT_BANNER
         
         embed = utils.discord.Embed(colour=self.member.color, timestamp=utils.utcnow())
         embed.set_author(name=translation.embed.author.format(self.member), url=banner)
         embed.set_image(url=banner)
-        embed.set_footer(text=translation.embed.footer.format(self.ctx.author.name), icon_url=self.ctx.author.avatar.url)
+        embed.set_footer(text=translation.embed.footer.format(interaction.user.name), icon_url=interaction.user.avatar.url)
 
         await interaction.response.edit_message(embed=embed, view=self)
         
     @ui.button(label="Information", emoji="📑", style=utils.discord.ButtonStyle.secondary)
     @ui.change_color_when_used
     async def information(self, interaction: utils.discord.Interaction, button: utils.discord.ui.Button, translation):
-        embed = info_embed(self.ctx, self.member, translation)
+        embed = info_embed(self.member, interaction.user, translation)
         await interaction.response.edit_message(embed=embed, view=self)
         
         
@@ -129,14 +144,14 @@ class User(utils.Cog):
     @utils.commands.hybrid_command()
     async def avatar(self, ctx: Context, member: Optional[utils.discord.Member] = None):
         member = member or ctx.author
-        embed = avatar_embed(ctx, member, ctx.translation)
+        embed = avatar_embed(member, ctx.author, ctx.translation)
 
         await ctx.send(embed=embed)
        
     @utils.commands.hybrid_command()
     async def info(self, ctx: Context, member: Optional[utils.discord.Member] = None):
         member = member or ctx.author
-        embed = info_embed(ctx, member, ctx.translation)
+        embed = info_embed(member, ctx.author, ctx.translation)
         
         await ctx.send(embed=embed)
         
@@ -163,7 +178,7 @@ class User(utils.Cog):
     async def afk(self, ctx: Context, *, reason=None):
         member = ctx.author
         if str(member.id) in self.afks:
-            translation = self.bot.translations.event(ctx.lang, "afk")
+            translation = self.translations.event(ctx.lang, "afk")
 
             await self.remove_from_afk(member.id)
             try:
@@ -201,7 +216,7 @@ class User(utils.Cog):
                 return 
             
             member = message.author
-            translation = self.bot.translations.event(self.bot.get_guild_lang(message.guild), "afk")
+            translation = self.translations.event(self.bot.get_guild_lang(message.guild), "afk")
 
             await self.remove_from_afk(member.id)
             try:
@@ -213,7 +228,7 @@ class User(utils.Cog):
 
         # is there a mention of an afk user?
         if message.mentions:
-            translation = self.bot.translations.event(self.bot.get_guild_lang(message.guild), "afk")
+            translation = self.translations.event(self.bot.get_guild_lang(message.guild), "afk")
             for user in message.mentions:
                 if str(user.id) in self.afks:
                     data = self.afks[str(user.id)]
