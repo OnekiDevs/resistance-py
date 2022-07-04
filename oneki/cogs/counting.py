@@ -178,11 +178,7 @@ class Counting(utils.Cog):
     def __init__(self, bot) -> None:
         super().__init__(bot)
         self.countings: dict[int, CountingStruct] = {}
-        self.emojis = {
-            "yes": "<:yes:885693508533489694>",
-            "no": "<:no:885693492632879104>",
-            "disgustado": "<:perturbado:897292618692718622>"
-        }
+        self.emojis = self.bot.bot_emojis
 
     async def cog_load(self):
         await self.get_countings()    
