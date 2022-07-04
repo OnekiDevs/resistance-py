@@ -10,5 +10,8 @@
     "e_counting": {
         "count_twice_in_a_row": "{} You ruined it!! {}, you can't count 2 consecutive times",
         "number_incorrect": "{} You ruined it!! {}, the number is wrong"
+    },
+    "v_generic": {
+        "user_check": "This is not for you {}"
     }
 }

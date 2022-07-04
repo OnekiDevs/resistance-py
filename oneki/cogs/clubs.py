@@ -291,17 +291,16 @@ class Explorer(ui.View):
                 self.clubs.append(club)
                 return club
         
-    async def get_data(self, *, client, guild: utils.discord.Guild, member: utils.discord.Member):
-        collec_ref = client.db.collection(f"guilds/{guild.id}/clubs")
+    def get_data(self, *, bot: OnekiBot, guild: utils.discord.Guild, member: utils.discord.Member):
+        collec_ref = bot.db.collection(f"guilds/{guild.id}/clubs")
         self.generator = collec_ref.list_documents()
         
-        return (client, guild, member)
+        return (bot, guild, member)
 
-    async def get_content(self, *args) -> str:
+    def get_content(self, *args) -> str:
         return self.translations.content
-        return "Club Explorer"
 
-    async def get_embed(self, client, guild, member) -> utils.discord.Embed:        
+    async def get_embed(self, bot, guild, member) -> utils.discord.Embed:        
         try:
             club = await self.generate_new_club(guild, member)
             return club.get_embed()
@@ -313,7 +312,7 @@ class Explorer(ui.View):
                 timestamp=utils.utcnow()
             )
 
-    async def update_components(self, client, guild, member):
+    def update_components(self, bot, guild, member):
         club = self.clubs[self.num]
         
         self.back.disabled = False
@@ -707,7 +706,7 @@ class Clubs(utils.Cog):
     @utils.app_commands.command()
     async def club_explorer(self, interaction: utils.discord.Interaction): 
         view = Explorer(
-            client=interaction.client, 
+            bot=interaction.client, 
             guild=interaction.guild, 
             member=interaction.user
         )

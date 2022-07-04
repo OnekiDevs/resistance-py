@@ -57,6 +57,12 @@ class OnekiBot(utils.commands.Bot):
         
         self.db = db.async_client()
         self.debug_channel_id = env.DEBUG_CHANNEL
+        self.bot_emojis = {
+            "enojao": "<:enojao:989312639744233502>",
+            "yes": "<:yes:885693508533489694>",
+            "no": "<:no:885693492632879104>",
+            "disgustado": "<:perturbado:897292618692718622>"
+        }
 
     async def _get_guild_settings(self):
         # guild_id: list
