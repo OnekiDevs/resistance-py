@@ -1,13 +1,12 @@
+from email.message import Message
 import discord
 from discord import ui 
 from ..context import Context
-from typing import Optional, TYPE_CHECKING
+from ..translations import Translation
+from typing import Optional
 
 import sys
 import traceback
-
-if TYPE_CHECKING:
-    from ..translations import Translation
 
 
 def _can_be_disabled(item):
@@ -39,7 +38,7 @@ class View(ui.View):
         return None
         
     async def get_embed(self, *args) -> Optional[discord.Embed]:
-        return None # this is optional to implement
+        return None
         
     async def update_components(self, *args):
         pass # this implementation is also optional
@@ -55,44 +54,59 @@ class View(ui.View):
          
         return {"content": content, "embed": self.embed, "view": self}
         
-    async def start(self, interaction: Optional[discord.Interaction] = None, *, ephemeral = False):
+    def _get_translations(self, interaction: Optional[discord.Interaction] = None) -> Translation:
         if self.name is not None:
-            self.translations: Translation = interaction.client.translations.view(interaction.locale.value, self.name) if interaction is not None else self.ctx.cog.translations.view(self.ctx.lang, self.name)
+            if interaction is not None:
+                return interaction.client.translations.view(interaction.locale.value, self.name)
+                
+            return self.ctx.bot.translations.view(self.ctx.lang, self.name)
+        
+    def _get_author(self, interaction: Optional[discord.Interaction] = None):
+        return interaction.user if interaction is not None else self.ctx.author
+        
+    async def _send_view(self, interaction: Optional[discord.Interaction] = None, **kwargs) -> discord.Message:
+        if interaction is not None:
+            await interaction.response.send_message(**kwargs)
+            return await interaction.original_message()
+            
+        return await self.ctx.send(**kwargs)
+        
+    async def start(self, interaction: Optional[discord.Interaction] = None, *, ephemeral = False):
+        self.translations = self._get_translations(interaction)
+        self.author = self._get_author(interaction)
         
         kwargs = await self.process_data()
         kwargs["ephemeral"] = ephemeral
-        
-        if interaction is not None:
-            self.author = interaction.user
-            await interaction.response.send_message(**kwargs)
-            self.msg = await interaction.original_message()
-        else:
-            self.author = self.ctx.author
-            self.msg = await self.ctx.send(**kwargs)
+        self.msg = await self._send_view(interaction, **kwargs)
         
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         if self.author is None:
             raise RuntimeError("can't user check can be done with unbooted view")
         
         if self.user_check:
-            return interaction.user == self.author
-            
+            check = interaction.user == self.author
+            if not check:
+                translation = interaction.client.translations.view(interaction.locale.value, "generic")
+                await interaction.response.send_message(translation.user_check.format(interaction.client.bot_emojis["enojao"]), ephemeral=True) 
+
+            return check
+        
         return True
         
-    async def update(self):
+    async def update(self) -> Message:
         kwargs = await self.process_data()
         
         if self.msg is None:
             raise RuntimeError("can't update view without start")
         
-        await self.msg.edit(**kwargs)
+        return await self.msg.edit(**kwargs)
             
     def _disable_children(self):
         for item in self.children:
             if _can_be_disabled(item):
                 item.disabled = True
         
-    async def disable(self, **kwargs):
+    async def disable(self, **kwargs) -> Message:
         if self._disabled:
             return
         
@@ -103,7 +117,7 @@ class View(ui.View):
         if self.msg is None:
             raise RuntimeError("can't disable view without start")
 
-        await self.msg.edit(view=self, **kwargs)
+        return await self.msg.edit(view=self, **kwargs)
         
     async def on_error(self, interaction: discord.Interaction, error: Exception, item) -> None:
         from .report_bug import ReportBug
