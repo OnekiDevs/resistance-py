@@ -663,8 +663,8 @@ class Clubs(utils.Cog):
             "approval_channel": approval_channel.id
         }
         
-        if nsfw_clubs_enabled is not None:
-            data["nsfw_clubs_enabled"]
+        if nsfw_clubs_enabled is not None and nsfw_clubs_enabled:
+            data["nsfw_clubs_enabled"] = nsfw_clubs_enabled
 
         doc = await doc_ref.get()
         if doc.exists:
