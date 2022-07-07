@@ -147,7 +147,7 @@ class GlobalStats(ui.View):
             self.num -= 1
         
         await self.update_components()
-        await interaction.response.edit_message(embed=self.embeds[self.num], view=self)
+        await interaction.response.edit_message(content=None, embed=self.embeds[self.num], view=self)
     
     @ui.button(label="Exit", style=utils.discord.ButtonStyle.red)
     async def exit(self, interaction: utils.discord.Interaction, button: utils.discord.ui.Button, _):

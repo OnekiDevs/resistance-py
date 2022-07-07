@@ -338,7 +338,7 @@ class Explorer(ui.View):
         
         embed = self.clubs[self.num].get_embed()
         await self.update_components(None, None, interaction.user)
-        await interaction.response.edit_message(embed=embed, view=self)
+        await interaction.response.edit_message(content=None, embed=embed, view=self)
     
     @ui.button(label="Join/Exit", style=utils.discord.ButtonStyle.red)
     async def join_or_exit(self, interaction: utils.discord.Interaction, button: utils.discord.ui.Button, translation): 
