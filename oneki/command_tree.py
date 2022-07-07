@@ -9,9 +9,9 @@ from utils.ui import ReportBug
 class CommandTree(app_commands.CommandTree):
     async def on_error(self, interaction: discord.Interaction, error: app_commands.AppCommandError) -> None:
         err = getattr(error, "original", error)
-        if isinstance(err, app_commands.CommandNotFound):
+        if isinstance(err, app_commands.CommandNotFound): 
             return
-        elif not isinstance(err, discord.HTTPException):                
+        elif not isinstance(err, (discord.HTTPException, app_commands.CheckFailure)): 
             view = ReportBug(error=err)
             await view.start(interaction)
         else:
