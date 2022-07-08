@@ -175,7 +175,7 @@ class OnekiBot(utils.commands.Bot):
             await ctx.send(translation.no_private_message)
         elif isinstance(err, utils.commands.DisabledCommand):
             await ctx.send(translation.disabled_command)
-        elif not isinstance(err, (utils.discord.HTTPException, utils.commands.CheckFailure)):                
+        elif not isinstance(err, utils.discord.HTTPException) and not isinstance(err, utils.commands.CheckFailure):                
             view = ui.ReportBug(ctx, error=err)
             await view.start()
         else:
