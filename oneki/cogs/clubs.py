@@ -300,7 +300,7 @@ class Explorer(ui.View):
     def get_content(self, *args) -> str:
         return self.translations.content
 
-    async def get_embed(self, bot, guild, member) -> utils.discord.Embed:        
+    async def get_embed(self, bot, guild, member) -> utils.discord.Embed:  
         try:
             club = await self.generate_new_club(guild, member)
             return club.get_embed()
@@ -312,32 +312,37 @@ class Explorer(ui.View):
                 timestamp=utils.utcnow()
             )
 
-    def update_components(self, bot, guild, member):
-        club = self.clubs[self.num]
-        
-        self.back.disabled = False
-        self.join_or_exit.disabled = False
-        self.next.disabled = False
-        
-        if self.num == 0:
-            self.back.disabled = True
-        
-        if (len(self.clubs) - 1) == self.num:
-            self.next.disabled = False
+    def update_components(self, bot, guild, member): 
+        try:
+            club = self.clubs[self.num]
             
-        if member.id == club.owner_id:
-            self.join_or_exit.disabled = True
-        
-        if member.id in club.mutes:
-            self.join_or_exit.disabled = True
+            self.back.disabled = False
+            self.join_or_exit.disabled = False
+            self.next.disabled = False        
 
+            if self.num == 0:
+                self.back.disabled = True
+            
+            if (len(self.clubs) - 1) == self.num:
+                self.next.disabled = False
+                
+            if member.id == club.owner_id:
+                self.join_or_exit.disabled = True
+            
+            if member.id in club.mutes:
+                self.join_or_exit.disabled = True
+        except IndexError:
+            self.back.disabled = True
+            self.join_or_exit.disabled = True
+            self.next.disabled = True
+         
     @ui.button(label="Back", emoji="⬅️", style=utils.discord.ButtonStyle.green)
     async def back(self, interaction: utils.discord.Interaction, button: utils.discord.ui.Button, _): 
         if self.num != 0:
             self.num -= 1
         
         embed = self.clubs[self.num].get_embed()
-        await self.update_components(None, None, interaction.user)
+        self.update_components(None, None, interaction.user)
         await interaction.response.edit_message(content=None, embed=embed, view=self)
     
     @ui.button(label="Join/Exit", style=utils.discord.ButtonStyle.red)
@@ -372,7 +377,7 @@ class Explorer(ui.View):
                 self.join_or_exit.disabled = True
                 return await interaction.response.edit_message(content=translation.no_more_clubs, embed=None, view=self)
                 
-        await self.update_components(None, None, interaction.user)
+        self.update_components(None, None, interaction.user) 
         await interaction.response.edit_message(embed=embed, view=self)
         
         
@@ -710,7 +715,7 @@ class Clubs(utils.Cog):
             guild=interaction.guild, 
             member=interaction.user
         )
-        await view.start(interaction, ephemeral=True)
+        await view.start(interaction)
     
 
 async def setup(bot: OnekiBot):
