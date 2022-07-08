@@ -338,7 +338,7 @@ class Explorer(ui.View):
         
         embed = self.clubs[self.num].get_embed()
         await self.update_components(None, None, interaction.user)
-        await interaction.response.edit_message(embed=embed, view=self)
+        await interaction.response.edit_message(content=None, embed=embed, view=self)
     
     @ui.button(label="Join/Exit", style=utils.discord.ButtonStyle.red)
     async def join_or_exit(self, interaction: utils.discord.Interaction, button: utils.discord.ui.Button, translation): 
@@ -663,8 +663,8 @@ class Clubs(utils.Cog):
             "approval_channel": approval_channel.id
         }
         
-        if nsfw_clubs_enabled is not None:
-            data["nsfw_clubs_enabled"]
+        if nsfw_clubs_enabled is not None and nsfw_clubs_enabled:
+            data["nsfw_clubs_enabled"] = nsfw_clubs_enabled
 
         doc = await doc_ref.get()
         if doc.exists:

@@ -8,25 +8,23 @@ import math
 import cmath
 
 if TYPE_CHECKING:
-    from bot import OnekiBot
     from utils.db import firestore
 
 
 class CountingStruct:
-    def __init__(self, data: dict, *, bot, guild_id: int) -> None:
-        self.guild_id = guild_id
-        self.bot: OnekiBot = bot 
+    def __init__(self, data: dict, *, guild: utils.discord.Guild) -> None:
+        self.guild = guild
         
         self.channel_id = int(data["channel"])
         self.current_number = data.get("current_number", {"num": 0})
+        self.current_number["num"] = int(self.current_number["num"])
+        
         self.numbers_only = data.get("numbers_only", True)
         self.record = data.get("record", {"num": 0})
+        self.record["num"] = int(self.record["num"])
+        
         self.fail_role_id = data.get("fail_role")
         self.users = data.get("users", {})
-    
-    @property
-    def guild(self):
-        return self.bot.get_guild(self.guild_id)
     
     @property
     def channel(self):
@@ -45,10 +43,10 @@ class CountingStruct:
             "numbers_only": self.numbers_only
         }
         
-        if int(self.current_number["num"]) != 0:
+        if self.current_number["num"] != 0:
             payload["current_number"] = self.current_number
         
-        if int(self.record["num"]) != 0:
+        if self.record["num"] != 0:
             payload["record"] = self.record
             
         if self.fail_role_id is not None:
@@ -123,8 +121,6 @@ class GlobalStats(ui.View):
         self.generator = self.ctx.db.collection("countings").order_by(
             "current_number.num", direction=self.ctx.db.Query.DESCENDING
         ).stream()
-        
-        return (None,)
 
     async def get_embed(self, *args) -> utils.discord.Embed:        
         try:
@@ -151,7 +147,7 @@ class GlobalStats(ui.View):
             self.num -= 1
         
         await self.update_components()
-        await interaction.response.edit_message(embed=self.embeds[self.num], view=self)
+        await interaction.response.edit_message(content=None, embed=self.embeds[self.num], view=self)
     
     @ui.button(label="Exit", style=utils.discord.ButtonStyle.red)
     async def exit(self, interaction: utils.discord.Interaction, button: utils.discord.ui.Button, _):
@@ -181,16 +177,19 @@ class Counting(utils.Cog):
         self.emojis = self.bot.bot_emojis
 
     async def cog_load(self):
-        await self.get_countings()    
+        await self.get_countings() 
 
     async def get_countings(self):
         db = self.bot.db
         async for doc_ref in db.collection("countings").list_documents():
             if doc_ref.id != "users":
                 doc = await doc_ref.get()
-                self.countings[int(doc_ref.id)] = CountingStruct(
-                    doc.to_dict(), bot=self.bot, guild_id=doc_ref.id
-                )
+                try:
+                    self.countings[int(doc_ref.id)] = CountingStruct(
+                        doc.to_dict(), guild=await self.bot.fetch_guild(doc_ref.id)
+                    )
+                except utils.discord.Forbidden:
+                    continue
 
     async def update_counting(self, doc_ref, guild_id, key, value): 
         await doc_ref.update({key: value})
@@ -229,7 +228,7 @@ class Counting(utils.Cog):
             if numbers_only is not None:
                 data["numbers_only"] = numbers_only
             
-            self.countings[ctx.guild.id] = CountingStruct(data, bot=self.bot, guild_id=ctx.guild.id)
+            self.countings[ctx.guild.id] = CountingStruct(data, guild=ctx.guild)
             await doc_ref.set(data)
             
         await ctx.send(ctx.translation.success)
@@ -382,11 +381,11 @@ class Counting(utils.Cog):
         by: utils.discord.Member, 
         message: utils.discord.Message
     ) -> int:
-        if (int(counting.current_number["num"]) + 1) == num:
+        if (counting.current_number["num"] + 1) == num:
             if counting.current_number.get("by") == str(by.id): 
                 return 1
             
-            if int(counting.record["num"]) <= num:
+            if counting.record["num"] <= num:
                 counting.record = {
                     "num": num,
                     "time": utils.utcnow()
@@ -394,7 +393,7 @@ class Counting(utils.Cog):
             
             counting.current_number = {
                 "message": str(message.id),
-                "num": int(counting.current_number["num"]) + 1,
+                "num": counting.current_number["num"] + 1,
                 "by": str(by.id)
             }
             
