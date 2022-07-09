@@ -11,7 +11,7 @@ class CommandTree(app_commands.CommandTree):
         err = getattr(error, "original", error)
         if isinstance(err, app_commands.CommandNotFound): 
             return
-        elif not isinstance(err, discord.HTTPException) and not isinstance(err, app_commands.CheckFailure): 
+        elif not isinstance(err, (discord.HTTPException, app_commands.CheckFailure)): 
             view = ReportBug(error=err)
             await view.start(interaction)
         else:
