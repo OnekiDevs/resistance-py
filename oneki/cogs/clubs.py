@@ -315,7 +315,7 @@ class Explorer(ui.View):
 
         return self.translations.no_more_clubs 
 
-    async def get_embed(self, club, _) -> utils.discord.Embed:  
+    def get_embed(self, club, _) -> utils.discord.Embed:  
         if club is not None:
             return club.get_embed()
 
