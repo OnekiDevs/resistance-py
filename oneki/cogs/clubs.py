@@ -291,20 +291,35 @@ class Explorer(ui.View):
                 self.clubs.append(club)
                 return club
         
-    def get_data(self, *, bot: OnekiBot, guild: utils.discord.Guild, member: utils.discord.Member):
-        collec_ref = bot.db.collection(f"guilds/{guild.id}/clubs")
-        self.generator = collec_ref.list_documents()
+    async def get_data(self, *, bot: OnekiBot, guild: utils.discord.Guild, member: utils.discord.Member):
+        if self.generator is None:
+            collec_ref = bot.db.collection(f"guilds/{guild.id}/clubs")
+            self.generator = collec_ref.list_documents()
         
-        return (bot, guild, member)
-
-    def get_content(self, *args) -> str:
-        return self.translations.content
-
-    async def get_embed(self, bot, guild, member) -> utils.discord.Embed:  
         try:
-            club = await self.generate_new_club(guild, member)
+            club = self.clubs[self.num]
+        except IndexError:
+            try:
+                club = await self.generate_new_club(guild, member)
+            except StopAsyncIteration:
+                club = None
+        
+        return (club, member)
+
+    def get_content(self, club, _) -> str: 
+        if club is not None:
+            return self.translations.content
+        
+        if utils.is_empty(self.clubs):
+            return
+
+        return self.translations.no_more_clubs 
+
+    async def get_embed(self, club, _) -> utils.discord.Embed:  
+        if club is not None:
             return club.get_embed()
-        except StopAsyncIteration:
+
+        if utils.is_empty(self.clubs):
             return utils.discord.Embed(
                 title=self.translations.embed_not_found.title, 
                 description=self.translations.embed_not_found.description,
@@ -312,10 +327,8 @@ class Explorer(ui.View):
                 timestamp=utils.utcnow()
             )
 
-    def update_components(self, bot, guild, member): 
-        try:
-            club = self.clubs[self.num]
-            
+    def update_components(self, club, member):         
+        if club is not None:
             self.back.disabled = False
             self.join_or_exit.disabled = False
             self.next.disabled = False        
@@ -331,20 +344,25 @@ class Explorer(ui.View):
             
             if member.id in club.mutes:
                 self.join_or_exit.disabled = True
-        except IndexError:
+
+            return
+        
+        if utils.is_empty(self.clubs):
             self.back.disabled = True
             self.join_or_exit.disabled = True
+            self.next.disabled = True 
+        else:
+            self.back.disabled = False
             self.next.disabled = True
-         
+            self.join_or_exit.disabled = True
+             
     @ui.button(label="Back", emoji="⬅️", style=utils.discord.ButtonStyle.green)
-    async def back(self, interaction: utils.discord.Interaction, button: utils.discord.ui.Button, _): 
+    async def back(self, interaction: utils.discord.Interaction, *_): 
         if self.num != 0:
             self.num -= 1
         
-        embed = self.clubs[self.num].get_embed()
-        self.update_components(None, None, interaction.user)
-        await interaction.response.edit_message(content=None, embed=embed, view=self)
-    
+        self.msg = await self.update(interaction) 
+        
     @ui.button(label="Join/Exit", style=utils.discord.ButtonStyle.red)
     async def join_or_exit(self, interaction: utils.discord.Interaction, button: utils.discord.ui.Button, translation): 
         club = self.clubs[self.num]
@@ -363,23 +381,9 @@ class Explorer(ui.View):
         await club.channel.edit(overwrites=overwrites)
     
     @ui.button(label="Next", emoji="➡️", style=utils.discord.ButtonStyle.green)
-    async def next(self, interaction: utils.discord.Interaction, button: utils.discord.ui.Button, translation): 
+    async def next(self, interaction: utils.discord.Interaction, *_): 
         self.num += 1
-        try:
-            club = self.clubs[self.num]
-            embed = club.get_embed()
-        except IndexError:
-            try:
-                club = await self.generate_new_club(interaction.guild, interaction.user)
-                embed = club.get_embed()
-            except StopAsyncIteration:
-                button.disabled = True
-                self.join_or_exit.disabled = True
-                return await interaction.response.edit_message(content=translation.no_more_clubs, embed=None, view=self)
-                
-        self.update_components(None, None, interaction.user) 
-        await interaction.response.edit_message(embed=embed, view=self)
-        
+        self.msg = await self.update(interaction) 
         
 def check_is_mod():
     async def predicate(interaction: utils.discord.Interaction) -> bool:

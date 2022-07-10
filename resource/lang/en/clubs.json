@@ -18,6 +18,7 @@
     },
     "v_explorer": {
         "content": "Club Explorer",
+        "no_more_clubs": "There are no more clubs to explore :(",
         "embed_not_found": {
             "title": "Nothing to see here",
             "description": "Sorry explorer, but it looks like there are no clubs to explore :("
@@ -26,9 +27,6 @@
             "exit": "You have left `{}`",
             "join": "You have joined `{}`",
             "new_user": "**{}** has joined the club!"
-        },
-        "next": {
-            "no_more_clubs": "There are no more clubs to explore :("
         }
     },
     "c_change_name": {

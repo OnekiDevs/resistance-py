@@ -15,6 +15,7 @@
     },
     "v_explorer": {
         "content": "Explorador de clubs",
+        "no_more_clubs": "Ya no hay mas clubs por explorar :(",
         "embed_not_found": {
             "title": "Nada que ver por aqui",
             "description": "Lo siento explorador, pero parece que no hay clubs por explorar :("
@@ -23,10 +24,7 @@
             "exit": "Te has salido de `{}`",
             "join": "Te has unido a `{}`",
             "new_user": "¡**{}** se ha unido al club!"
-        },
-        "next": {
-            "no_more_clubs": "Ya no hay mas clubs por explorar :("
-        }
+        } 
     },
     "c_change_name": {
         "success": "El nombre del club se cambio a {}!",
