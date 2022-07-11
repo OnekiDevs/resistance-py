@@ -40,7 +40,7 @@ class View(ui.View):
         return None
         
     async def update_components(self, *args):
-        pass # this implementation is also optional
+        pass # nothing is returned in this function
         
     async def process_data(self):
         data = await discord.utils.maybe_coroutine(self.get_data, **self.kwargs)
@@ -76,6 +76,7 @@ class View(ui.View):
         
         kwargs = await self.process_data()
         kwargs["ephemeral"] = ephemeral
+
         self.msg = await self._send_view(interaction, **kwargs)
         
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
@@ -99,8 +100,8 @@ class View(ui.View):
             raise RuntimeError("can't update view without start")
         
         if interaction is not None:
-            await interaction.response.edit_message(**kwargs)
-            return self.msg
+            await interaction.response.edit_message(**kwargs) 
+            return await interaction.original_message()
 
         return await self.msg.edit(**kwargs)
          
