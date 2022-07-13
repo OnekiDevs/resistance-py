@@ -267,12 +267,12 @@ class Questionnaire(ui.Modal, title="Questionnaire Club"):
         await channel.send(self.translations.new_club, embed=embed)
 
 
-class Explorer(ui.View):
+class Explorer(ui.CancellableView):
     name: str = "explorer"
     
     def __init__(self, context = None, **kwargs):
         super().__init__(context, **kwargs)
-        self.generator: AsyncGenerator[AsyncDocumentReference] = None
+        self.generator: Optional[AsyncGenerator[AsyncDocumentReference]] = None
         self.clubs: list[Club] = []
         self.num = 0
         
@@ -306,7 +306,7 @@ class Explorer(ui.View):
         
         return (club, member)
 
-    def get_content(self, club, _) -> str: 
+    def get_content(self, club: Club, _) -> str: 
         if club is not None:
             return self.translations.content
         
@@ -315,7 +315,7 @@ class Explorer(ui.View):
 
         return self.translations.no_more_clubs 
 
-    def get_embed(self, club, _) -> utils.discord.Embed:  
+    def get_embed(self, club: Club, _) -> utils.discord.Embed:  
         if club is not None:
             return club.get_embed()
 
@@ -327,7 +327,7 @@ class Explorer(ui.View):
                 timestamp=utils.utcnow()
             )
 
-    def update_components(self, club, member):         
+    def update_components(self, club: Club, member: utils.discord.Member):         
         if club is not None:
             self.back.disabled = False
             self.join_or_exit.disabled = False
@@ -344,10 +344,10 @@ class Explorer(ui.View):
             
             if member.id in club.mutes:
                 self.join_or_exit.disabled = True
-
-            return
-        
-        if utils.is_empty(self.clubs):
+            
+            self.join_or_exit.label = "Exit" if member.id in club.members else "Join"
+            self.join_or_exit.style = utils.discord.ButtonStyle.red if member.id in club.members else utils.discord.ButtonStyle.green
+        elif utils.is_empty(self.clubs):
             self.back.disabled = True
             self.join_or_exit.disabled = True
             self.next.disabled = True 
@@ -356,14 +356,12 @@ class Explorer(ui.View):
             self.next.disabled = True
             self.join_or_exit.disabled = True
              
-    @ui.button(label="Back", emoji="⬅️", style=utils.discord.ButtonStyle.green)
+    @ui.button(label="Back", emoji="⬅️", style=utils.discord.ButtonStyle.grey)
     async def back(self, interaction: utils.discord.Interaction, *_): 
-        if self.num != 0:
-            self.num -= 1
-        
+        self.num -= 1        
         self.msg = await self.update(interaction) 
         
-    @ui.button(label="Join/Exit", style=utils.discord.ButtonStyle.red)
+    @ui.button(label="Join/Exit", style=utils.discord.ButtonStyle.green)
     async def join_or_exit(self, interaction: utils.discord.Interaction, button: utils.discord.ui.Button, translation): 
         club = self.clubs[self.num]
         if interaction.user.id in club.members: # Exit
@@ -380,7 +378,7 @@ class Explorer(ui.View):
         
         await club.channel.edit(overwrites=overwrites)
     
-    @ui.button(label="Next", emoji="➡️", style=utils.discord.ButtonStyle.green)
+    @ui.button(label="Next", emoji="➡️", style=utils.discord.ButtonStyle.grey)
     async def next(self, interaction: utils.discord.Interaction, *_): 
         self.num += 1
         self.msg = await self.update(interaction) 
