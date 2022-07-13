@@ -9,6 +9,7 @@ import cmath
 
 if TYPE_CHECKING:
     from utils.db import firestore
+    DocumentSnapshot = firestore.firestore.DocumentSnapshot
 
 
 class CountingStruct:
@@ -63,7 +64,7 @@ class GlobalStats(ui.View):
     
     def __init__(self, context, **kwargs):
         super().__init__(context, **kwargs)
-        self.generator: AsyncGenerator[firestore.firestore.DocumentSnapshot] = None
+        self.generator: Optional[AsyncGenerator[DocumentSnapshot]] = None
         self.embeds: list[utils.discord.Embed] = []
         self.num = 0
         
@@ -107,9 +108,14 @@ class GlobalStats(ui.View):
                     await self.ctx.bot.fetch_user(int(data["current_number"]["by"]))
                 )
                 
-                embed.add_field(name=await self.ctx.bot.fetch_guild(int(doc.id)), value=content)
+                try:
+                    guild = await self.ctx.bot.fetch_guild(int(doc.id))
+                except utils.discord.Forbidden:
+                    continue
+                    
+                embed.add_field(name=guild, value=content)
             except Exception as e:
-                if num != 0:
+                if num != 0 or num == 6:
                     self.embeds.append(embed)
                     return embed
                 
@@ -122,7 +128,7 @@ class GlobalStats(ui.View):
             "current_number.num", direction=self.ctx.db.Query.DESCENDING
         ).stream()
 
-    async def get_embed(self, *args) -> utils.discord.Embed:        
+    async def get_embed(self) -> utils.discord.Embed:        
         try:
             return await self.generate_new_embed()
         except StopAsyncIteration:
@@ -134,7 +140,7 @@ class GlobalStats(ui.View):
             )
             return embed
 
-    async def update_components(self, *args):
+    async def update_components(self):
         if self.num == 0:
             self.back.disabled = True
         
