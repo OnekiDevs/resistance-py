@@ -45,7 +45,7 @@ class View(ui.View):
     async def process_data(self):
         data = await discord.utils.maybe_coroutine(self.get_data, **self.kwargs)
         if not isinstance(data, tuple):
-            data = (data,)
+            data = (data,) if data is not None else tuple()
 
         content = await discord.utils.maybe_coroutine(self.get_content, *data)
         self.embed = await discord.utils.maybe_coroutine(self.get_embed, *data)
