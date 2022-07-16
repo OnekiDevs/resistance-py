@@ -1,9 +1,8 @@
-from email.message import Message
 import discord
 from discord import ui 
 from ..context import Context
 from ..translations import Translation
-from typing import Optional
+from typing import Optional, Union
 
 import sys
 import traceback
@@ -23,7 +22,7 @@ class View(ui.View):
         
         self.ctx = context
         self.author: Optional[discord.Member] = None
-        self.msg: Optional[discord.Message] = None
+        self.msg: Optional[Union[discord.Message, discord.InteractionMessage]] = None
         self.embed: Optional[discord.Embed] = None
         
         self.translations: Optional[Translation] = None
@@ -41,12 +40,12 @@ class View(ui.View):
         return None
         
     async def update_components(self, *args):
-        pass # this implementation is also optional
+        pass # nothing is returned in this function
         
     async def process_data(self):
         data = await discord.utils.maybe_coroutine(self.get_data, **self.kwargs)
         if not isinstance(data, tuple):
-            data = (data,)
+            data = (data,) if data is not None else tuple()
 
         content = await discord.utils.maybe_coroutine(self.get_content, *data)
         self.embed = await discord.utils.maybe_coroutine(self.get_embed, *data)
@@ -77,6 +76,7 @@ class View(ui.View):
         
         kwargs = await self.process_data()
         kwargs["ephemeral"] = ephemeral
+
         self.msg = await self._send_view(interaction, **kwargs)
         
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
@@ -93,20 +93,24 @@ class View(ui.View):
         
         return True
         
-    async def update(self) -> Message:
+    async def update(self, interaction: Optional[discord.Interaction] = None) -> Union[discord.Message, discord.InteractionMessage]:
         kwargs = await self.process_data()
         
         if self.msg is None:
             raise RuntimeError("can't update view without start")
         
+        if interaction is not None:
+            await interaction.response.edit_message(**kwargs) 
+            return await interaction.original_message()
+
         return await self.msg.edit(**kwargs)
-            
+         
     def _disable_children(self):
         for item in self.children:
             if _can_be_disabled(item):
                 item.disabled = True
         
-    async def disable(self, **kwargs) -> Message:
+    async def disable(self, **kwargs) -> Union[discord.Message, discord.InteractionMessage]:
         if self._disabled:
             return
         

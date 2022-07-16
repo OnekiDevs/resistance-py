@@ -37,7 +37,7 @@ DEBUG_CHANNEL = ...
 
 ## Credits
 I would like to thank the following people
-- [Rapptz](https://github.com/Rapptz) creator of discord.py and RoboDanny
+- [Rapptz](https://github.com/Rapptz) creator of [discord.py](https://github.com/Rapptz/discord.py) and [RoboDanny](https://github.com/Rapptz/RoboDanny)
 - [LostLuma](https://github.com/LostLuma) creator of [mousey](https://github.com/LostLuma/Mousey) bot
 
 ## License
