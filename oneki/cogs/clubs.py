@@ -291,7 +291,7 @@ class Explorer(ui.CancellableView):
                 self.clubs.append(club)
                 return club
         
-    async def get_data(self, *, bot: OnekiBot, guild: utils.discord.Guild, member: utils.discord.Member):
+    async def get_data(self, *, bot: OnekiBot, guild: utils.discord.Guild, member: utils.discord.Member) -> tuple[Optional[Club], utils.discord.Member]:
         if self.generator is None:
             collec_ref = bot.db.collection(f"guilds/{guild.id}/clubs")
             self.generator = collec_ref.list_documents()
@@ -306,16 +306,14 @@ class Explorer(ui.CancellableView):
         
         return (club, member)
 
-    def get_content(self, club: Club, _) -> str: 
+    def get_content(self, club: Optional[Club], _) -> Optional[str]: 
         if club is not None:
             return self.translations.content
         
-        if utils.is_empty(self.clubs):
-            return
+        if self.clubs:
+            return self.translations.no_more_clubs 
 
-        return self.translations.no_more_clubs 
-
-    def get_embed(self, club: Club, _) -> utils.discord.Embed:  
+    def get_embed(self, club: Optional[Club], _) -> Optional[utils.discord.Embed]:  
         if club is not None:
             return club.get_embed()
 
@@ -327,7 +325,7 @@ class Explorer(ui.CancellableView):
                 timestamp=utils.utcnow()
             )
 
-    def update_components(self, club: Club, member: utils.discord.Member):         
+    def update_components(self, club: Optional[Club], member: utils.discord.Member):         
         if club is not None:
             self.back.disabled = False
             self.join_or_exit.disabled = False
